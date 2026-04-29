@@ -1,0 +1,4 @@
+.chrome-test-profile/
+.edge-test-profile/
+app-screenshot.png
+*.log
