@@ -2,6 +2,11 @@
   "use strict";
 
   const STORE_KEY = "life-binder-web-state-v1";
+  const AUTH_STORE_KEY = "life-binder-auth-v1";
+  const SUPABASE_URL = "https://ktchyquqqmvvsmnqpurm.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_kdwfBTunk1RQxbRVcaXKYg_5M2zlxdH";
+  const LOGIN_DOMAIN = "binder.local";
+  const REMOTE_SAVE_DELAY = 800;
   const app = document.getElementById("app");
 
   const categories = [
@@ -42,6 +47,13 @@
   ];
 
   let state = loadState();
+  let authSession = loadAuthSession();
+  let authStatus = "loading";
+  let authError = "";
+  let authMessage = "";
+  let syncStatus = "";
+  let remoteSaveTimer = null;
+  let remoteSavePromise = Promise.resolve();
   let drawState = null;
   let editDragState = null;
   let schedulePopup = null;
@@ -268,6 +280,211 @@
     return createSeedState();
   }
 
+  function loadAuthSession() {
+    try {
+      const raw = localStorage.getItem(AUTH_STORE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.warn("Saved login could not be loaded.", error);
+      return null;
+    }
+  }
+
+  function saveAuthSession(session) {
+    authSession = session;
+    localStorage.setItem(AUTH_STORE_KEY, JSON.stringify(session));
+  }
+
+  function clearAuthSession() {
+    authSession = null;
+    localStorage.removeItem(AUTH_STORE_KEY);
+    if (remoteSaveTimer) {
+      window.clearTimeout(remoteSaveTimer);
+      remoteSaveTimer = null;
+    }
+  }
+
+  function loginIdToEmail(value) {
+    const clean = String(value || "").trim().toLowerCase();
+    if (!clean) return "";
+    return clean.includes("@") ? clean : `${clean}@${LOGIN_DOMAIN}`;
+  }
+
+  function displayLoginId() {
+    const email = authSession?.user?.email || "";
+    return email.endsWith(`@${LOGIN_DOMAIN}`) ? email.slice(0, -(`@${LOGIN_DOMAIN}`).length) : email;
+  }
+
+  function normalizeAuthSession(data, previousSession = null) {
+    const expiresAt = data.expires_at || Math.floor(Date.now() / 1000) + Number(data.expires_in || 3600);
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || previousSession?.refresh_token || "",
+      expires_at: expiresAt,
+      user: data.user || previousSession?.user || null
+    };
+  }
+
+  async function signIn(loginId, password) {
+    const email = loginIdToEmail(loginId);
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    saveAuthSession(normalizeAuthSession(data));
+  }
+
+  async function refreshAuthSession() {
+    if (!authSession?.refresh_token) {
+      throw new Error("No refresh token.");
+    }
+    const previousSession = authSession;
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ refresh_token: authSession.refresh_token })
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    saveAuthSession(normalizeAuthSession(data, previousSession));
+  }
+
+  async function ensureAuthSession() {
+    if (!authSession?.access_token) {
+      throw new Error("Login required.");
+    }
+    if (authSession.expires_at && authSession.expires_at < Math.floor(Date.now() / 1000) + 60) {
+      await refreshAuthSession();
+    }
+    return authSession;
+  }
+
+  async function supabaseRequest(path, options = {}, retry = true) {
+    const { auth = true, headers = {}, ...fetchOptions } = options;
+    if (auth) await ensureAuthSession();
+    const requestHeaders = {
+      apikey: SUPABASE_KEY,
+      ...headers
+    };
+    if (authSession?.access_token && auth) {
+      requestHeaders.Authorization = `Bearer ${authSession.access_token}`;
+    }
+    const response = await fetch(`${SUPABASE_URL}${path}`, {
+      ...fetchOptions,
+      headers: requestHeaders
+    });
+    if (response.status === 401 && retry && authSession?.refresh_token) {
+      await refreshAuthSession();
+      return supabaseRequest(path, options, false);
+    }
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  function saveLocalState() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }
+
+  function setSyncStatus(value) {
+    syncStatus = value;
+    const element = document.querySelector("[data-sync-status]");
+    if (element) element.textContent = value;
+  }
+
+  function queueRemoteSave() {
+    if (authStatus !== "signed-in" || !authSession?.user?.id) return;
+    setSyncStatus("저장 중...");
+    if (remoteSaveTimer) window.clearTimeout(remoteSaveTimer);
+    remoteSaveTimer = window.setTimeout(() => {
+      remoteSaveTimer = null;
+      remoteSavePromise = remoteSavePromise
+        .catch(() => {})
+        .then(() => saveRemoteStateNow("저장됨"));
+    }, REMOTE_SAVE_DELAY);
+  }
+
+  async function saveRemoteStateNow(doneMessage = "저장됨") {
+    if (!authSession?.user?.id) return;
+    try {
+      await supabaseRequest("/rest/v1/app_states", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify({
+          user_id: authSession.user.id,
+          state,
+          updated_at: new Date().toISOString()
+        })
+      });
+      setSyncStatus(doneMessage);
+    } catch (error) {
+      console.error("Remote save failed.", error);
+      setSyncStatus("저장 실패");
+    }
+  }
+
+  async function loadRemoteState() {
+    if (!authSession?.user?.id) return;
+    setSyncStatus("불러오는 중...");
+    const userId = encodeURIComponent(authSession.user.id);
+    const rows = await supabaseRequest(`/rest/v1/app_states?select=state&user_id=eq.${userId}&limit=1`, {
+      headers: { Accept: "application/json" }
+    });
+    if (Array.isArray(rows) && rows[0]?.state) {
+      state = normalizeState(rows[0].state);
+      saveLocalState();
+      setSyncStatus("불러옴");
+      return;
+    }
+    saveLocalState();
+    await saveRemoteStateNow("초기 저장됨");
+  }
+
+  async function initializeApp() {
+    if (!authSession?.access_token) {
+      authStatus = "signed-out";
+      render();
+      return;
+    }
+    authStatus = "loading";
+    authMessage = "로그인 확인 중...";
+    render();
+    try {
+      await ensureAuthSession();
+      await loadRemoteState();
+      authStatus = "signed-in";
+      authMessage = "";
+      authError = "";
+      render();
+    } catch (error) {
+      console.warn("Stored login expired.", error);
+      clearAuthSession();
+      authStatus = "signed-out";
+      authMessage = "";
+      authError = "다시 로그인해 주세요.";
+      render();
+    }
+  }
+
   function normalizeState(next) {
     return {
       activeView: next.activeView === "paper" ? "week" : (next.activeView || "week"),
@@ -477,7 +694,8 @@
     };
   }
   function saveState() {
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    saveLocalState();
+    queueRemoteSave();
   }
 
   function captureScrollState() {
@@ -524,6 +742,11 @@
   }
 
   function render() {
+    if (authStatus !== "signed-in") {
+      app.innerHTML = renderAuthScreen();
+      bindAuthEvents();
+      return;
+    }
     const title = navItems.find((item) => item.id === state.activeView)?.label || "오늘";
     app.innerHTML = `
       <div class="app-shell">
@@ -536,6 +759,66 @@
       ${renderSchedulePopup()}
     `;
     bindEvents();
+  }
+
+  function renderAuthScreen() {
+    const isLoading = authStatus === "loading";
+    return `
+      <main class="auth-screen">
+        <section class="auth-card">
+          <div class="auth-brand">
+            <div class="binder-mark" aria-hidden="true"></div>
+            <div>
+              <p class="brand-title">Life Binder</p>
+              <p class="brand-subtitle">Supabase sync</p>
+            </div>
+          </div>
+          <form class="auth-form" data-form="login">
+            <h1>로그인</h1>
+            <p>등록된 아이디만 사용할 수 있습니다.</p>
+            <label>
+              <span>아이디</span>
+              <input name="loginId" autocomplete="username" required placeholder="아이디">
+            </label>
+            <label>
+              <span>비밀번호</span>
+              <input name="password" type="password" autocomplete="current-password" required placeholder="비밀번호">
+            </label>
+            ${authError ? `<div class="auth-error">${esc(authError)}</div>` : ""}
+            ${authMessage ? `<div class="auth-message">${esc(authMessage)}</div>` : ""}
+            <button type="submit" class="text-btn primary" ${isLoading ? "disabled" : ""}>${isLoading ? "확인 중..." : "들어가기"}</button>
+          </form>
+        </section>
+      </main>
+    `;
+  }
+
+  function bindAuthEvents() {
+    const form = app.querySelector('[data-form="login"]');
+    if (!form) return;
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      authStatus = "loading";
+      authError = "";
+      authMessage = "로그인 중...";
+      render();
+      try {
+        await signIn(data.loginId, data.password);
+        await loadRemoteState();
+        authStatus = "signed-in";
+        authMessage = "";
+        authError = "";
+        render();
+      } catch (error) {
+        console.error("Login failed.", error);
+        clearAuthSession();
+        authStatus = "signed-out";
+        authMessage = "";
+        authError = "아이디 또는 비밀번호를 확인해 주세요.";
+        render();
+      }
+    });
   }
 
   function renderSidebar() {
@@ -590,6 +873,8 @@
           <button class="icon-btn" data-date-shift="1" title="다음">›</button>
           <button class="text-btn" data-today title="오늘로 이동">오늘</button>
           <button class="text-btn" data-export title="JSON으로 내보내기">내보내기</button>
+          <span class="sync-chip" data-sync-status>${esc(syncStatus || displayLoginId())}</span>
+          <button class="text-btn" data-logout title="로그아웃">로그아웃</button>
         </div>
       </header>
     `;
@@ -1955,6 +2240,26 @@
       exportButton.addEventListener("click", exportData);
     }
 
+    const logoutButton = app.querySelector("[data-logout]");
+    if (logoutButton) {
+      logoutButton.addEventListener("click", async () => {
+        logoutButton.disabled = true;
+        if (remoteSaveTimer) {
+          window.clearTimeout(remoteSaveTimer);
+          remoteSaveTimer = null;
+          await saveRemoteStateNow("저장됨");
+        }
+        await remoteSavePromise.catch(() => {});
+        await supabaseRequest("/auth/v1/logout", { method: "POST" }).catch(() => {});
+        clearAuthSession();
+        authStatus = "signed-out";
+        authMessage = "";
+        authError = "";
+        syncStatus = "";
+        render();
+      });
+    }
+
     app.querySelectorAll("[data-select-date]").forEach((button) => {
       button.addEventListener("click", () => {
         const selectedDate = button.dataset.selectDate;
@@ -3041,5 +3346,5 @@
     URL.revokeObjectURL(url);
   }
 
-  render();
+  initializeApp();
 })();
