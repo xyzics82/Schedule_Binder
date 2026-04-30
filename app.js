@@ -5,22 +5,33 @@
   const app = document.getElementById("app");
 
   const categories = [
-    { id: "work", name: "업무", color: "#0f766e" },
-    { id: "study", name: "학습", color: "#5b57c8" },
-    { id: "health", name: "건강", color: "#2f8f6b" },
-    { id: "relation", name: "관계", color: "#c95537" },
-    { id: "rest", name: "휴식", color: "#b7791f" },
-    { id: "admin", name: "정리", color: "#667085" }
+    { id: "mainWork", name: "주업무", color: "#e85d8f" },
+    { id: "supportWork", name: "보조업무", color: "#f2c94c" },
+    { id: "faithHome", name: "신앙/가정/봉사", color: "#2ec27e" },
+    { id: "selfDev", name: "자기개발", color: "#4dabf7" },
+    { id: "network", name: "휴먼 네트워크", color: "#ff922b" }
   ];
 
-  const DAY_START_HOUR = 6;
+  const DAY_START_HOUR = 5;
   const DAY_END_HOUR = 24;
-  const SNAP_MINUTES = 30;
+  const SNAP_MINUTES = 15;
+
+  const checkStatuses = [
+    { id: "open", symbol: "", label: "\ubbf8\uc815" },
+    { id: "done", symbol: "v", label: "\uc644\ub8cc" },
+    { id: "progress", symbol: "->", label: "\uc9c4\ud589\uc911" },
+    { id: "cancelled", symbol: "-x-", label: "\ucde8\uc18c" },
+    { id: "postponed", symbol: "=", label: "\uc5f0\uae30/\uc704\uc784" }
+  ];
 
   const navItems = [
-    { id: "week", label: "주간", icon: "W" },
+    {
+      id: "week",
+      label: "주간",
+      icon: "W",
+      tooltip: "주간 작성 방법: 먼저 Plan으로 계획 시간을 만들고, Do에서 계획을 눌러 실행을 작성합니다. 실행을 저장하면 Do가 크게 보이고 Plan은 좁은 시간 표시로 옆에 붙습니다."
+    },
     { id: "today", label: "오늘", icon: "T" },
-    { id: "paper", label: "페이퍼", icon: "A" },
     { id: "month", label: "월간", icon: "M" },
     { id: "goals", label: "목표", icon: "G" },
     { id: "projects", label: "프로젝트", icon: "P" },
@@ -32,9 +43,19 @@
 
   let state = loadState();
   let drawState = null;
+  let editDragState = null;
+  let schedulePopup = null;
+  let monthEditorDate = null;
 
   function todayISO() {
-    return toISO(new Date());
+    const parts = new Intl.DateTimeFormat("en", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
   }
 
   function toISO(date) {
@@ -64,8 +85,7 @@
   function startOfWeek(iso) {
     const date = parseISO(iso);
     const day = date.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    date.setDate(date.getDate() + diff);
+    date.setDate(date.getDate() - day);
     return toISO(date);
   }
 
@@ -132,8 +152,8 @@
     return ((minutes - start) / total) * 100;
   }
 
-  function durationPercent(start, end) {
-    return Math.max(3.2, linePercent(end) - linePercent(start));
+  function durationPercent(start, end, minimum = 3.2) {
+    return Math.max(minimum, linePercent(end) - linePercent(start));
   }
 
   function minutesToText(minutes) {
@@ -144,8 +164,30 @@
     return `${m}분`;
   }
 
+  function multiline(value) {
+    return esc(value).replace(/\r\n|\r|\n/g, "<br>");
+  }
+
+  function isValidISODate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+    return toISO(parseISO(value)) === value;
+  }
+
   function categoryById(id) {
-    return categories.find((item) => item.id === id) || categories[0];
+    return categories.find((item) => item.id === normalizeCategoryId(id)) || categories[0];
+  }
+
+  function normalizeCategoryId(id) {
+    if (categories.some((item) => item.id === id)) return id;
+    const legacyMap = {
+      work: "mainWork",
+      study: "selfDev",
+      health: "selfDev",
+      relation: "network",
+      rest: "faithHome",
+      admin: "supportWork"
+    };
+    return legacyMap[id] || "mainWork";
   }
 
   function goalById(id) {
@@ -154,6 +196,63 @@
 
   function projectById(id) {
     return state.projects.find((item) => item.id === id);
+  }
+
+  function normalizeCheckStatus(item) {
+    const status = typeof item === "string" ? item : item?.status;
+    if (status === "delegated") return "postponed";
+    if (checkStatuses.some((entry) => entry.id === status)) return status;
+    return item?.done ? "done" : "open";
+  }
+
+  function statusById(id) {
+    return checkStatuses.find((entry) => entry.id === id) || checkStatuses[0];
+  }
+
+  function nextCheckStatus(id) {
+    const currentIndex = checkStatuses.findIndex((entry) => entry.id === normalizeCheckStatus(id));
+    return checkStatuses[(currentIndex + 1) % checkStatuses.length].id;
+  }
+
+  function checkIsDone(item) {
+    return normalizeCheckStatus(item) === "done";
+  }
+
+  function normalizeDailyCheck(item) {
+    const status = normalizeCheckStatus(item);
+    return {
+      ...item,
+      status,
+      done: status === "done"
+    };
+  }
+
+  function checkStatusClass(item) {
+    return `is-status-${normalizeCheckStatus(item)}`;
+  }
+
+  function renderStatusSelect(className, attrsText, currentStatus) {
+    const normalized = normalizeCheckStatus(currentStatus);
+    const status = statusById(normalized);
+    return `<button type="button" class="status-toggle ${className} is-${attr(normalized)}" ${attrsText} data-status="${attr(normalized)}" title="${attr(status.label)}" aria-label="${attr(status.label)}"><span class="status-icon" aria-hidden="true">${statusIconMarkup(normalized)}</span></button>`;
+  }
+
+  function statusIconMarkup(status) {
+    const normalized = normalizeCheckStatus(status);
+    const base = `class="status-svg" viewBox="0 0 24 24" focusable="false"`;
+    if (normalized === "done") {
+      return `<svg ${base}><path d="M5 12.5 9.2 16.5 19 7.5"/></svg>`;
+    }
+    if (normalized === "progress") {
+      return `<svg ${base}><path d="M4.5 12h13"/><path d="M12.5 6.8 17.7 12l-5.2 5.2"/></svg>`;
+    }
+    if (normalized === "cancelled") {
+      return `<svg ${base}><path d="M7 7 17 17"/><path d="M17 7 7 17"/></svg>`;
+    }
+    if (normalized === "postponed") {
+      return `<svg ${base}><path d="M6 8h12"/><path d="M6 16h12"/><path d="M15 5l3 3-3 3"/></svg>`;
+    }
+    return "";
   }
 
   function loadState() {
@@ -171,21 +270,44 @@
 
   function normalizeState(next) {
     return {
-      activeView: next.activeView || "week",
+      activeView: next.activeView === "paper" ? "week" : (next.activeView || "week"),
       currentDate: next.currentDate || todayISO(),
       goals: Array.isArray(next.goals) ? next.goals : [],
       projects: Array.isArray(next.projects) ? next.projects : [],
       tasks: Array.isArray(next.tasks) ? next.tasks.map(normalizeTask) : [],
       blocks: Array.isArray(next.blocks) ? next.blocks.map(normalizeBlock) : [],
       notes: Array.isArray(next.notes) ? next.notes : [],
-      reviews: next.reviews || { daily: {}, weekly: {} }
+      reviews: normalizeReviews(next.reviews),
+      weekDrawMode: next.weekDrawMode || "plan",
+      todayDetailBlockId: next.todayDetailBlockId || ""
     };
   }
 
   function normalizeTask(task) {
+    const status = normalizeCheckStatus(task);
     return {
       ...task,
-      done: Boolean(task.done)
+      weekStart: startOfWeek(task.weekStart || task.dueDate || todayISO()),
+      scope: task.scope || "work",
+      status,
+      done: status === "done"
+    };
+  }
+
+  function normalizeReviews(reviews) {
+    const source = reviews || {};
+    const daily = {};
+    Object.entries(source.daily || {}).forEach(([date, log]) => {
+      daily[date] = {
+        ...log,
+        top: Array.isArray(log?.top) ? log.top : ["", "", ""],
+        text: log?.text || "",
+        checks: Array.isArray(log?.checks) ? log.checks.map(normalizeDailyCheck) : []
+      };
+    });
+    return {
+      daily,
+      weekly: source.weekly || {}
     };
   }
 
@@ -194,6 +316,8 @@
     const hasActual = Boolean(actualText.trim() || block.actualDone || block.actualStart || block.actualEnd || block.actualOnly);
     return {
       ...block,
+      categoryId: normalizeCategoryId(block.categoryId),
+      actualCategoryId: normalizeCategoryId(block.actualCategoryId || block.categoryId),
       actualText,
       actualStart: block.actualStart || (hasActual ? block.start : ""),
       actualEnd: block.actualEnd || (hasActual ? block.end : ""),
@@ -217,12 +341,14 @@
     return {
       activeView: "week",
       currentDate: today,
+      weekDrawMode: "plan",
+      todayDetailBlockId: "",
       goals: [
         {
           id: goalA,
-          title: "나의 시간 사용을 보이게 만들기",
+          title: "시간 사용을 보이게 만들기",
           category: "성장",
-          description: "매일 10분 기록하고 주간 리뷰로 다음 행동을 정한다.",
+          description: "매일 기록하고 주간 리뷰로 다음 행동을 정한다.",
           endDate: addDays(today, 90),
           status: "active"
         },
@@ -240,7 +366,7 @@
           id: projectA,
           goalId: goalA,
           title: "Life Binder MVP 만들기",
-          description: "목표, 시간, 리뷰, 지식 노트를 연결하는 첫 버전.",
+          description: "목표, 시간, 리뷰, 노트를 연결하는 첫 버전.",
           dueDate: addDays(today, 14),
           status: "active"
         },
@@ -248,7 +374,7 @@
           id: projectB,
           goalId: goalB,
           title: "주 3회 운동 루틴",
-          description: "짧게라도 반복 가능한 운동 시간을 확보한다.",
+          description: "지속 가능한 운동 시간을 확보한다.",
           dueDate: addDays(today, 30),
           status: "active"
         }
@@ -260,6 +386,8 @@
           goalId: goalA,
           title: "이번 주 목표 3개 정리",
           dueDate: today,
+          weekStart,
+          scope: "work",
           priority: "high",
           done: false
         },
@@ -269,6 +397,8 @@
           goalId: goalB,
           title: "저녁 산책 30분",
           dueDate: today,
+          weekStart,
+          scope: "personal",
           priority: "normal",
           done: false
         }
@@ -282,7 +412,8 @@
           date: today,
           start: "09:00",
           end: "10:00",
-          categoryId: "work",
+          categoryId: "mainWork",
+          actualCategoryId: "mainWork",
           status: "planned",
           actualStart: "09:10",
           actualEnd: "09:55",
@@ -291,7 +422,7 @@
           actualOnly: false,
           cancelled: false,
           cancelMemo: "",
-          memoText: "첫 실행 기록. 다음에는 계획보다 10분 늦게 시작한 이유를 확인하기.",
+          memoText: "다음에는 계획보다 10분 늦게 시작한 이유를 확인하기.",
           photos: []
         },
         {
@@ -302,7 +433,8 @@
           date: tomorrow,
           start: "19:00",
           end: "19:40",
-          categoryId: "health",
+          categoryId: "selfDev",
+          actualCategoryId: "selfDev",
           status: "planned",
           actualStart: "",
           actualEnd: "",
@@ -329,29 +461,66 @@
       reviews: {
         daily: {
           [today]: {
-            top: ["오늘의 핵심 일정 잡기", "미완료 할 일 줄이기", "저녁에 3줄 회고"],
-            text: ""
+            top: ["오늘 일정 쓰기", "미완료 줄이기", "저녁에 3줄 회고"],
+            text: "",
+            checks: []
           }
         },
         weekly: {
           [weekStart]: {
             wins: "",
             lessons: "",
-            next: "다음 주에도 기록을 먼저 열어본다."
+            next: "다음 주에는 기록을 먼저 이어본다."
           }
         }
       }
     };
   }
-
   function saveState() {
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
   }
 
-  function setState(mutator) {
+  function captureScrollState() {
+    const scrollingElement = document.scrollingElement || document.documentElement;
+    const selectors = [".week-planner-scroll", ".month-scroll", ".workspace", ".main"];
+    return {
+      x: window.scrollX,
+      y: window.scrollY,
+      rootTop: scrollingElement.scrollTop,
+      rootLeft: scrollingElement.scrollLeft,
+      elements: selectors.flatMap((selector) => {
+        return Array.from(document.querySelectorAll(selector)).map((element, index) => ({
+          selector,
+          index,
+          top: element.scrollTop,
+          left: element.scrollLeft
+        }));
+      })
+    };
+  }
+
+  function restoreScrollState(snapshot) {
+    if (!snapshot) return;
+    window.requestAnimationFrame(() => {
+      const scrollingElement = document.scrollingElement || document.documentElement;
+      scrollingElement.scrollTop = snapshot.rootTop;
+      scrollingElement.scrollLeft = snapshot.rootLeft;
+      window.scrollTo(snapshot.x, snapshot.y);
+      snapshot.elements.forEach((item) => {
+        const element = document.querySelectorAll(item.selector)[item.index];
+        if (!element) return;
+        element.scrollTop = item.top;
+        element.scrollLeft = item.left;
+      });
+    });
+  }
+
+  function setState(mutator, options = {}) {
+    const scrollState = options.preserveScroll === false ? null : captureScrollState();
     mutator(state);
     saveState();
     render();
+    restoreScrollState(scrollState);
   }
 
   function render() {
@@ -364,15 +533,12 @@
           <div class="workspace">${renderActiveView()}</div>
         </main>
       </div>
+      ${renderSchedulePopup()}
     `;
     bindEvents();
   }
 
   function renderSidebar() {
-    const completed = state.tasks.filter((task) => task.done).length;
-    const total = state.tasks.length || 1;
-    const rate = Math.round((completed / total) * 100);
-    const executedBlocks = state.blocks.filter(blockIsExecuted).length;
     return `
       <aside class="sidebar">
         <div class="brand" aria-label="Life Binder Web">
@@ -384,34 +550,40 @@
         </div>
         <nav class="nav-list" aria-label="주요 화면">
           ${navItems.map((item) => `
-            <button class="nav-btn ${state.activeView === item.id ? "is-active" : ""}" data-view="${item.id}" title="${esc(item.label)}">
+            <button class="nav-btn ${state.activeView === item.id ? "is-active" : ""}" data-view="${item.id}" title="${attr(item.tooltip || item.label)}">
               <span class="nav-icon" aria-hidden="true">${esc(item.icon)}</span>
               <span class="nav-label">${esc(item.label)}</span>
             </button>
           `).join("")}
         </nav>
-        <div class="sidebar-footer">
-          <div class="mini-stat">
-            <strong>${rate}%</strong>
-            <span>전체 할 일 완료율</span>
-          </div>
-          <div class="mini-stat">
-            <strong>${executedBlocks}/${state.blocks.length}</strong>
-            <span>실행 기록된 시간 블록</span>
-          </div>
-        </div>
+        ${state.activeView === "week" || state.activeView === "today" ? renderWeekModeButtons() : ""}
       </aside>
+    `;
+  }
+
+  function renderWeekModeButtons() {
+    return `
+      <div class="sidebar-mode" role="group" aria-label="주간 입력 모드">
+        <button type="button" class="${(state.weekDrawMode || "plan") === "plan" ? "is-active" : ""}" data-week-mode="plan">Plan</button>
+        <button type="button" class="${state.weekDrawMode === "actual" ? "is-active" : ""}" data-week-mode="actual">Do</button>
+      </div>
     `;
   }
 
   function renderTopbar(title) {
     const subtitle = getSubtitle();
+    const weekStart = startOfWeek(state.currentDate);
+    const review = ensureWeeklyReview(weekStart);
+    const titleDate = state.activeView === "today"
+      ? `<span class="topbar-title-date">${esc(dayHeadLabel(state.currentDate))}</span>`
+      : "";
     return `
       <header class="topbar">
-        <div>
-          <h1>${esc(title)}</h1>
-          <p>${esc(subtitle)}</p>
+        <div class="topbar-title-block">
+          <h1><span>${esc(title)}</span>${titleDate}</h1>
+          ${subtitle ? `<p>${esc(subtitle)}</p>` : ""}
         </div>
+        ${renderDontForgetField(weekStart, review)}
         <div class="toolbar">
           <button class="icon-btn" data-date-shift="-1" title="이전">‹</button>
           <span class="date-chip">${esc(getDateLabel())}</span>
@@ -423,28 +595,67 @@
     `;
   }
 
+  function renderSchedulePopup() {
+    if (!schedulePopup) return "";
+    const title = schedulePopup.mode === "actual" ? "실행 기록" : "계획 작성";
+    const helper = schedulePopup.mode === "actual"
+      ? "실제로 한 일을 적어주세요. 시간은 블록을 드래그해서 조정합니다."
+      : "계획 내용을 적어주세요. 시간은 블록을 드래그해서 조정합니다.";
+    const value = schedulePopup.title || "";
+    const categoryId = normalizeCategoryId(schedulePopup.categoryId);
+    const categoryLocked = Boolean(schedulePopup.lockCategory);
+    return `
+      <div class="popup-backdrop" data-close-schedule-popup></div>
+      <form class="schedule-popover" data-form="schedule-popup" style="left:${schedulePopup.x}px; top:${schedulePopup.y}px;">
+        <div class="popover-head">
+          <div>
+            <strong>${esc(title)}</strong>
+            <span>${esc(helper)}</span>
+          </div>
+          <button type="button" data-close-schedule-popup title="닫기">×</button>
+        </div>
+        <label class="popover-title-field">
+          <span>내용</span>
+          <textarea name="title" required autofocus placeholder="무엇을 할까요?">${esc(value)}</textarea>
+        </label>
+        <div class="popover-categories ${categoryLocked ? "is-locked" : ""}" role="group" aria-label="일정 분류">
+          ${categories.map((category) => `
+            <label>
+              <input type="checkbox" name="categoryId" value="${attr(category.id)}" ${category.id === categoryId ? "checked" : ""} ${categoryLocked ? "disabled" : ""}>
+              <span>${esc(category.name)}</span>
+            </label>
+          `).join("")}
+        </div>
+        <div class="popover-actions">
+          ${schedulePopup.action === "edit" ? `<button type="button" class="text-btn danger" data-delete-schedule-popup>삭제</button>` : ""}
+          <button type="button" class="text-btn" data-close-schedule-popup>취소</button>
+          <button type="submit" class="text-btn primary">저장</button>
+        </div>
+      </form>
+    `;
+  }
+
   function getSubtitle() {
+    if (state.activeView === "today") {
+      return "";
+    }
     if (state.activeView === "week") {
       return `${formatDate(startOfWeek(state.currentDate))}부터 ${formatDate(endOfWeek(state.currentDate))}까지`;
     }
     if (state.activeView === "month") {
       return `${monthTitle(state.currentDate)} 로드맵`;
     }
-    if (state.activeView === "paper") {
-      return "한 장짜리 주간 바인더 시트입니다.";
-    }
     if (state.activeView === "stats") {
-      return "계획과 실제 시간의 흐름을 확인합니다.";
+      return "계획과 실행 시간의 흐름을 확인합니다.";
     }
     if (state.activeView === "guide") {
-      return "주요 기능의 사용 예시를 한 곳에서 봅니다.";
+      return "주요 기능의 사용 예시를 한곳에서 봅니다.";
     }
     return "오늘의 실행과 다음 리뷰까지 한 번에 봅니다.";
   }
 
   function getDateLabel() {
     if (state.activeView === "month") return monthTitle(state.currentDate);
-    if (state.activeView === "paper") return `${formatDate(startOfWeek(state.currentDate))} 주`;
     if (state.activeView === "week") return `${formatDate(startOfWeek(state.currentDate))} 주`;
     return formatDate(state.currentDate);
   }
@@ -453,8 +664,6 @@
     switch (state.activeView) {
       case "week":
         return renderWeekView();
-      case "paper":
-        return renderPaperView();
       case "month":
         return renderMonthView();
       case "goals":
@@ -478,32 +687,23 @@
     const date = state.currentDate;
     const log = ensureDailyLog(date);
     const blocks = blocksForDate(date);
-    const tasks = state.tasks
-      .filter((task) => !task.done && (!task.dueDate || task.dueDate <= date))
-      .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+    const dailyChecks = log.checks || [];
+    const selectedBlock = blocks.find((block) => block.id === state.todayDetailBlockId) || null;
 
     return `
       <div class="today-layout">
         <section class="panel sheet today-record-panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">오늘 스케줄 요약</h2>
-              <p class="panel-subtitle">주간에서 그은 계획과 실행만 간단히 보고, 각 항목에 메모와 사진을 연결합니다.</p>
-            </div>
-            <button class="text-btn primary" data-view="week">주간 보기</button>
-          </div>
           <div class="panel-body">
-            <div class="today-linked-list">
-              ${blocks.length ? blocks.map(renderTodayLinkedRecord).join("") : `<div class="empty">오늘 주간표에 입력된 계획이나 실행이 없습니다.</div>`}
-            </div>
+            ${renderTodayScheduleBoard(date, selectedBlock?.id || "")}
           </div>
         </section>
         <aside class="today-side">
+          ${renderTodayDetailPanel(selectedBlock)}
           <section class="panel">
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">오늘의 핵심 3가지</h2>
-                <p class="panel-subtitle">오늘 반드시 남길 행동만 적습니다.</p>
+                <p class="panel-subtitle">오늘 반드시 할 행동만 짧게 적습니다.</p>
               </div>
             </div>
             <div class="panel-body">
@@ -517,14 +717,14 @@
           <section class="panel">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">미완료 할 일</h2>
-                <p class="panel-subtitle">${tasks.length}개가 오늘의 주의를 기다립니다.</p>
+                <h2 class="panel-title">오늘 체크박스</h2>
+                <p class="panel-subtitle">주간 체크박스와 별도로 저장됩니다.</p>
               </div>
             </div>
             <div class="panel-body">
-              ${renderTaskForm(date)}
-              <div class="list" style="margin-top: 12px;">
-                ${tasks.length ? tasks.map(renderTaskRow).join("") : `<div class="empty">오늘 처리할 할 일이 없습니다.</div>`}
+              ${renderDailyCheckForm(date)}
+              <div class="list today-check-list">
+                ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<div class="empty">오늘 체크박스가 없습니다.</div>`}
               </div>
             </div>
           </section>
@@ -532,7 +732,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">3줄 회고</h2>
-                <p class="panel-subtitle">짧게 남겨도 다음 계획의 재료가 됩니다.</p>
+                <p class="panel-subtitle">지나치게 길지 않게 다음 계획의 재료만 남깁니다.</p>
               </div>
             </div>
             <div class="panel-body review-box">
@@ -545,196 +745,245 @@
     `;
   }
 
-  function renderTodayLinkedRecord(block) {
-    const category = categoryById(block.categoryId);
+  function renderTodayLinkedRecord(block, selected = false) {
     const hasPlan = !block.actualOnly;
     const hasActual = blockHasActualLine(block);
+    const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
+    const displayTitle = block.actualText || block.title;
+    const displayTime = hasActual
+      ? `${block.actualStart || block.start}-${block.actualEnd || block.end}`
+      : `${block.start}-${block.end}`;
     return `
-      <article class="today-linked-record">
-        <div class="today-schedule-card" style="border-left-color:${attr(category.color)}">
-          <div class="today-card-head">
-            <span>${esc(category.name)}</span>
-            <strong>${esc(hasActual ? "실행 기록" : "계획")}</strong>
-          </div>
-          ${hasPlan ? `
-            <button type="button" class="today-plan-chip ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}">
-              <span>계획</span>
-              <strong>${esc(block.start)}-${esc(block.end)}</strong>
-              <em>${esc(block.title)}</em>
-            </button>
-          ` : ""}
-          ${block.cancelled ? `
-            <button type="button" class="today-cancel-note" data-open-cancel="${attr(block.id)}">취소 메모 보기</button>
-          ` : ""}
-          ${hasActual ? `
-            <button type="button" class="today-actual-chip" data-edit-actual="${attr(block.id)}">
-              <span>실행</span>
-              <strong>${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}</strong>
-              <em>${esc(block.actualText || block.title)}</em>
-            </button>
-          ` : `<div class="today-empty-actual">아직 실행 기록 없음</div>`}
+      <button type="button" class="today-schedule-card today-schedule-select ${selected ? "is-selected" : ""} ${blockHasLinkedNote(block) ? "has-note" : ""}" data-select-today-block="${attr(block.id)}" style="border-left-color:${attr(category.color)}">
+        <div class="today-card-head">
+          <span>${esc(category.name)}</span>
+          <strong>${esc(displayTime)}</strong>
         </div>
-        <div class="today-connector" aria-hidden="true"><span></span></div>
-        <div class="today-note-card ${blockHasLinkedNote(block) ? "has-note" : ""}">
-          <label class="note-label" for="memo-${attr(block.id)}">연결 메모</label>
-          <textarea id="memo-${attr(block.id)}" class="block-memo" data-block-id="${attr(block.id)}" placeholder="이 일정에서 남길 생각, 결과, 다음 행동">${esc(block.memoText || "")}</textarea>
-          <div class="photo-strip">
-            ${(block.photos || []).map((photo, idx) => `
-              <figure>
-                <img src="${attr(photo)}" alt="연결 사진 ${idx + 1}">
-                <button type="button" data-delete-block-photo="${attr(block.id)}" data-photo-index="${idx}" title="사진 삭제">×</button>
-              </figure>
-            `).join("")}
-            <label class="photo-add">
-              사진 추가
-              <input class="block-photo-input" type="file" accept="image/*" multiple data-block-id="${attr(block.id)}">
-            </label>
-          </div>
-        </div>
-      </article>
+        <strong class="today-schedule-title">${multiline(displayTitle || "일정")}</strong>
+        <span class="today-schedule-meta">${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
+      </button>
     `;
   }
 
-  function blockHasLinkedNote(block) {
-    return Boolean((block.memoText || "").trim() || (block.photos || []).length);
-  }
-
-  function renderTimeline(blocks) {
-    const rows = [];
-    for (let hour = 6; hour <= 23; hour += 1) {
-      const planBlocks = blocks.filter((block) => {
-        if (block.actualOnly) return false;
-        const start = minutesFromTime(block.start);
-        const end = minutesFromTime(block.end);
-        return start < (hour + 1) * 60 && end > hour * 60;
-      });
-      const actualBlocks = blocks.filter((block) => {
-        if (!blockHasActualLine(block)) return false;
-        const start = minutesFromTime(block.actualStart || block.start);
-        const end = minutesFromTime(block.actualEnd || block.end);
-        return start < (hour + 1) * 60 && end > hour * 60;
-      });
-      rows.push(`
-        <div class="timeline-row">
-          <div class="timeline-hour">${String(hour).padStart(2, "0")}:00</div>
-          <div class="timeline-lane plan-lane">
-            <div class="lane-title">계획</div>
-            ${planBlocks.length ? planBlocks.map(renderPlanLine).join("") : `<div class="line-placeholder">계획 없음</div>`}
-          </div>
-          <div class="timeline-lane actual-lane">
-            <div class="lane-title">실행</div>
-            ${actualBlocks.length ? actualBlocks.map(renderActualLine).join("") : `<div class="line-placeholder">기록 없음</div>`}
+  function renderTodayScheduleBoard(date, selectedBlockId) {
+    const blocks = blocksForDate(date);
+    const dailyChecks = ensureDailyLog(date).checks || [];
+    const mode = state.weekDrawMode || "plan";
+    const segments = layoutCalendarSegments(blocks, mode);
+    return `
+      <div class="day-column today-day-column">
+            <button class="day-head" data-view="week" title="주간 탭에서 보기">
+              <div class="day-head-main">
+                <span class="day-date-line">${esc(dayHeadLabel(date))}</span>
+                <span class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}">${mode === "actual" ? "Do" : "Plan"}</span>
+              </div>
+            </button>
+        <div class="day-checks today-board-checks">
+          <div class="today-board-check-list">
+            ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<span class="day-empty">오늘 체크박스가 없습니다.</span>`}
           </div>
         </div>
-      `);
-    }
-    return `<div class="timeline">${rows.join("")}</div>`;
-  }
-
-  function renderPlanLine(block) {
-    const category = categoryById(block.categoryId);
-    const executed = blockIsExecuted(block);
-    return `
-      <div class="plan-line ${executed ? "is-executed" : ""} ${block.cancelled ? "is-cancelled" : ""}" style="border-left-color:${attr(category.color)}">
-        <label class="inline-check" title="실행 완료 표시">
-          <input class="block-done" type="checkbox" data-block-id="${attr(block.id)}" ${block.actualDone ? "checked" : ""}>
-          <span>${esc(block.start)}-${esc(block.end)} ${esc(block.title)}</span>
-        </label>
-        <button type="button" data-delete-block="${attr(block.id)}" title="일정 삭제">×</button>
+        <div class="day-draw-board">
+          <div class="day-axis">${renderTimeAxis()}</div>
+          <div class="draw-lane calendar-draw-lane today-editable-lane ${mode === "actual" ? "is-actual-mode" : "is-plan-mode"}" data-draw-lane="${attr(mode)}" data-date="${attr(date)}" title="Drag to create ${mode === "actual" ? "Do" : "Plan"}">
+            ${segments.map((segment) => renderCalendarSegment(segment, mode, "today", selectedBlockId)).join("")}
+          </div>
+        </div>
       </div>
     `;
   }
 
-  function renderActualLine(block) {
-    const executed = blockIsExecuted(block);
+  function renderTodayDetailPanel(block) {
+    if (!block) {
+      return `
+        <section class="panel today-detail-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">일정 상세</h2>
+              <p class="panel-subtitle">왼쪽 일정 중 기록을 남길 항목을 선택합니다.</p>
+            </div>
+          </div>
+          <div class="panel-body"><div class="empty">선택한 일정이 없습니다.</div></div>
+        </section>
+      `;
+    }
+    const hasPlan = !block.actualOnly;
+    const hasActual = blockHasActualLine(block);
+    const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
+    const actualStart = block.actualStart || block.start;
+    const actualEnd = block.actualEnd || block.end;
     return `
-      <input class="actual-input ${executed ? "is-executed" : ""}" data-block-id="${attr(block.id)}" value="${attr(block.actualText || "")}" placeholder="실행한 내용">
+      <section class="panel today-detail-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">일정 상세</h2>
+            <p class="panel-subtitle">${esc(category.name)}</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="today-detail-summary" style="border-left-color:${attr(category.color)}">
+            <strong>${multiline(block.actualText || block.title || "일정")}</strong>
+            <span>${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
+            <div class="today-detail-actions">
+              ${hasPlan ? `<button type="button" class="text-btn" data-edit-plan="${attr(block.id)}">계획 수정</button>` : ""}
+              ${hasActual ? `<button type="button" class="text-btn" data-edit-actual="${attr(block.id)}">실행 수정</button>` : ""}
+            </div>
+          </div>
+          <div class="today-detail-pair">
+            <article>
+              <h3>Plan</h3>
+              ${hasPlan
+                ? `<strong>${multiline(block.title || "계획")}</strong><span>${esc(block.start)}-${esc(block.end)}</span>`
+                : `<em>계획 항목 없음</em>`}
+            </article>
+            <article>
+              <h3>Do</h3>
+              ${hasActual
+                ? `<strong>${multiline(block.actualText || block.title || "실행")}</strong><span>${esc(actualStart)}-${esc(actualEnd)}</span>`
+                : `<em>실행 기록 없음</em>`}
+            </article>
+          </div>
+          <div class="today-note-card ${blockHasLinkedNote(block) ? "has-note" : ""}">
+            <label class="note-label" for="memo-${attr(block.id)}">메모</label>
+            <textarea id="memo-${attr(block.id)}" class="block-memo" data-block-id="${attr(block.id)}" placeholder="이 일정에만 남길 생각, 결과, 다음 행동">${esc(block.memoText || "")}</textarea>
+            <div class="photo-strip">
+              ${renderBlockAttachments(block)}
+              <label class="photo-add">
+                자료 추가
+                <input class="block-photo-input" type="file" multiple data-block-id="${attr(block.id)}">
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
     `;
   }
 
-  function blockIsExecuted(block) {
-    return Boolean((block.actualText || "").trim() || block.actualDone);
+  function renderBlockAttachments(block) {
+    return (block.photos || []).map((photo, idx) => {
+      const source = typeof photo === "string" ? photo : photo.data;
+      const name = typeof photo === "string" ? `첨부 ${idx + 1}` : (photo.name || `첨부 ${idx + 1}`);
+      const type = typeof photo === "string" ? "image/*" : (photo.type || "");
+      const isImage = type.startsWith("image/") || String(source || "").startsWith("data:image");
+      return `
+        <figure class="${isImage ? "" : "file-attachment"}">
+          ${isImage ? `<img src="${attr(source)}" alt="${attr(name)}">` : `<a href="${attr(source)}" download="${attr(name)}">${esc(shortText(name, 18))}</a>`}
+          <button type="button" data-delete-block-photo="${attr(block.id)}" data-photo-index="${idx}" title="첨부 삭제">×</button>
+        </figure>
+      `;
+    }).join("");
+  }
+  function blockHasLinkedNote(block) {
+    return Boolean((block.memoText || "").trim() || (block.photos || []).length);
   }
 
   function blockHasActualLine(block) {
-    return Boolean(block.actualOnly || block.actualDone || (block.actualText || "").trim() || (block.actualStart && block.actualEnd));
+    return Boolean(
+      block.actualOnly ||
+      block.actualDone ||
+      (block.actualText || "").trim() ||
+      block.actualStart ||
+      block.actualEnd
+    );
   }
 
-  function renderScheduleForm(defaultDate) {
+  function blockIsExecuted(block) {
+    return blockHasActualLine(block);
+  }
+
+  function renderDailyCheckForm(date) {
+    const formId = `daily-check-title-${date}`;
     return `
-      <form class="form-grid" data-form="schedule">
+      <form class="quick-line daily-check-form" data-form="daily-check" data-check-date="${attr(date)}">
         <div class="field">
-          <label for="schedule-title">일정명</label>
-          <input id="schedule-title" name="title" required placeholder="예: 주간 리뷰 작성">
+          <label for="${attr(formId)}">하루 체크</label>
+          <input id="${attr(formId)}" name="title" required placeholder="하루 체크박스">
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="schedule-date">날짜</label>
-            <input id="schedule-date" name="date" type="date" value="${attr(defaultDate)}" required>
-          </div>
-          <div class="field">
-            <label for="schedule-category">영역</label>
-            <select id="schedule-category" name="categoryId">
-              ${categories.map((item) => `<option value="${attr(item.id)}">${esc(item.name)}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="schedule-start">시작</label>
-            <input id="schedule-start" name="start" type="time" value="09:00" required>
-          </div>
-          <div class="field">
-            <label for="schedule-end">종료</label>
-            <input id="schedule-end" name="end" type="time" value="10:00" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="schedule-goal">목표</label>
-            <select id="schedule-goal" name="goalId">
-              <option value="">연결 없음</option>
-              ${state.goals.map((goal) => `<option value="${attr(goal.id)}">${esc(goal.title)}</option>`).join("")}
-            </select>
-          </div>
-          <div class="field">
-            <label for="schedule-project">프로젝트</label>
-            <select id="schedule-project" name="projectId">
-              <option value="">연결 없음</option>
-              ${state.projects.map((project) => `<option value="${attr(project.id)}">${esc(project.title)}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <button class="text-btn primary" type="submit">일정 추가</button>
+        <button class="icon-btn primary daily-check-add" type="submit" title="오늘 체크박스 추가">+</button>
       </form>
     `;
   }
 
-  function renderTaskForm(defaultDate, projectId) {
+  function renderDailyCheckRow(item, idx, date) {
+    const status = normalizeCheckStatus(item);
+    return `
+      <div class="list-row check-row ${status === "done" ? "is-done" : ""} ${checkStatusClass(item)}">
+        ${renderStatusSelect("daily-check-status", `data-check-date="${attr(date)}" data-check-index="${idx}"`, status)}
+        <div>
+          <input class="daily-check-title" data-check-date="${attr(date)}" data-check-index="${idx}" value="${attr(item.title)}" title="하루 체크박스 수정">
+        </div>
+        <button class="icon-btn" data-delete-daily-check="${attr(date)}" data-check-index="${idx}" title="오늘 체크박스 삭제">×</button>
+      </div>
+    `;
+  }
+
+  function renderTaskForm(defaultDate, projectId, scope) {
+    const formId = `${projectId || scope || "today"}-${defaultDate}`;
     return `
       <form class="quick-line" data-form="task">
         <div class="field">
-          <label for="task-title-${attr(projectId || "today")}">할 일</label>
-          <input id="task-title-${attr(projectId || "today")}" name="title" required placeholder="새 할 일">
+          <label for="task-title-${attr(formId)}">할 일</label>
+          <input id="task-title-${attr(formId)}" name="title" required placeholder="체크박스 항목">
           <input type="hidden" name="projectId" value="${attr(projectId || "")}">
           <input type="hidden" name="dueDate" value="${attr(defaultDate)}">
+          <input type="hidden" name="scope" value="${attr(scope || "work")}">
         </div>
         <button class="text-btn primary" type="submit">추가</button>
       </form>
     `;
   }
 
-  function renderTaskRow(task) {
+  function renderWeekTaskForm(weekStart, scope) {
+    const formId = `week-${scope}-${weekStart}`;
+    return `
+      <form class="quick-line week-task-form" data-form="task">
+        <div class="field">
+          <label for="task-title-${attr(formId)}">이번 주 체크</label>
+          <input id="task-title-${attr(formId)}" name="title" required placeholder="체크 항목">
+          <input type="hidden" name="projectId" value="">
+          <input type="hidden" name="dueDate" value="${attr(weekStart)}">
+          <input type="hidden" name="weekStart" value="${attr(weekStart)}">
+          <input type="hidden" name="scope" value="${attr(scope)}">
+        </div>
+        <button class="icon-btn primary week-task-add" type="submit" title="체크 항목 추가">+</button>
+      </form>
+    `;
+  }
+
+  function renderWeekTaskBucket(title, scope, tasks, weekStart) {
+    return `
+      <section class="week-task-bucket">
+        <div class="week-task-title-row">
+          <h4>${esc(title)}</h4>
+          ${scope === "work" ? renderCheckStatusLegend() : ""}
+        </div>
+        ${renderWeekTaskForm(weekStart, scope)}
+        <div class="week-check-list">
+          ${tasks.length ? tasks.map((task) => renderTaskRow(task, { hidePeriod: true, hideMeta: true })).join("") : `<div class="empty small-empty">${esc(title)} 체크박스가 없습니다.</div>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTaskRow(task, options = {}) {
     const goal = goalById(task.goalId);
     const project = projectById(task.projectId);
+    const status = normalizeCheckStatus(task);
+    const metaParts = [];
+    if (!options.hidePeriod) {
+      metaParts.push(task.weekStart ? `${task.weekStart} 주간` : (task.dueDate || "마감 없음"));
+    }
+    if (!options.hideMeta && project) metaParts.push(project.title);
+    if (!options.hideMeta && goal) metaParts.push(goal.title);
+    const meta = metaParts.join(" · ");
     return `
-      <div class="list-row ${task.done ? "is-done" : ""}">
-        <input class="task-check" type="checkbox" data-task-id="${attr(task.id)}" ${task.done ? "checked" : ""} title="완료">
+      <div class="list-row check-row ${status === "done" ? "is-done" : ""} ${checkStatusClass(task)}">
+        ${renderStatusSelect("task-status", `data-task-id="${attr(task.id)}"`, status)}
         <div>
-          <p class="row-title">${esc(task.title)}</p>
-          <p class="row-meta">${esc(task.dueDate || "마감 없음")}${project ? ` · ${esc(project.title)}` : ""}${goal ? ` · ${esc(goal.title)}` : ""}</p>
+          <input class="task-title-input" data-task-id="${attr(task.id)}" value="${attr(task.title)}" title="체크박스 수정">
+          ${meta ? `<p class="row-meta">${esc(meta)}</p>` : ""}
         </div>
-        <button class="icon-btn" data-delete-task="${attr(task.id)}" title="할 일 삭제">×</button>
+        <button class="icon-btn" data-delete-task="${attr(task.id)}" title="체크박스 삭제">×</button>
       </div>
     `;
   }
@@ -744,34 +993,23 @@
     const days = Array.from({ length: 7 }, (_, idx) => addDays(start, idx));
     const weekBlocks = state.blocks.filter((block) => block.date >= start && block.date <= endOfWeek(state.currentDate));
     const weekTasks = state.tasks
-      .filter((task) => !task.dueDate || (task.dueDate >= start && task.dueDate <= endOfWeek(state.currentDate)))
-      .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+      .filter((task) => (task.scope || "work") !== "monthProject")
+      .filter((task) => (task.weekStart || startOfWeek(task.dueDate || start)) === start)
+      .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    const workTasks = weekTasks.filter((task) => (task.scope || "work") === "work");
+    const personalTasks = weekTasks.filter((task) => (task.scope || "work") === "personal");
     const stats = categoryStats(weekBlocks.filter((block) => !block.actualOnly && !block.cancelled));
     const review = ensureWeeklyReview(start);
     return `
       <div class="full-grid">
-        <section class="panel sheet">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">주간 계획판</h2>
-              <p class="panel-subtitle">월간 목표를 이번 주 행동으로 내립니다.</p>
-            </div>
-          </div>
+        <section class="panel sheet week-sheet">
           <div class="panel-body">
-            <div class="week-focus-grid">
-              <div>
-                <h3 class="section-label">이번 주 체크박스</h3>
-                ${renderTaskForm(state.currentDate)}
-                <div class="week-check-list">
-                  ${weekTasks.length ? weekTasks.map(renderTaskRow).join("") : `<div class="empty">이번 주 할 일이 없습니다.</div>`}
-                </div>
-              </div>
-              <div>
-                <h3 class="section-label">주간 작성 방식</h3>
-                <div class="highlight-note">
-                  계획 레인에서 드래그하면 계획 라인이, 실행 레인에서 드래그하면 실행 라인이 생깁니다. 취소 체크를 켜면 작은 취소 메모가 남습니다.
-                </div>
-              </div>
+            <div class="week-task-columns">
+              ${renderWeekTaskBucket("업무", "work", workTasks, start)}
+              ${renderWeekTaskBucket("개인", "personal", personalTasks, start)}
+            </div>
+            <div class="week-top-scroll" data-week-top-scroll aria-label="주간표 가로 이동">
+              <div class="week-top-scroll-inner"></div>
             </div>
             <div class="week-planner-scroll">
               <div class="week-planner">
@@ -796,7 +1034,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">주간 리뷰</h2>
-                <p class="panel-subtitle">좋았던 것, 배운 것, 다음 초점을 정합니다.</p>
+                <p class="panel-subtitle">좋았던 것, 배운 것, 다음 초점을 정리합니다.</p>
               </div>
             </div>
             <div class="panel-body">
@@ -810,39 +1048,31 @@
 
   function renderDayColumn(day) {
     const blocks = blocksForDate(day);
-    const tasks = state.tasks.filter((task) => task.dueDate === day);
+    const dailyChecks = ensureDailyLog(day).checks || [];
     const isCurrent = day === todayISO();
-    const plannedBlocks = blocks.filter((block) => !block.actualOnly);
-    const actualBlocks = blocks.filter(blockHasActualLine);
+    const mode = state.weekDrawMode || "plan";
+    const segments = layoutCalendarSegments(blocks, mode);
     return `
       <div class="day-column ${isCurrent ? "is-current" : ""}">
-        <button class="day-head" data-select-date="${attr(day)}" title="이 날짜 열기">
-          <div class="day-name">${esc(formatDate(day, { weekday: "short" }))}</div>
-          <div class="day-date">${esc(formatDate(day, { month: "numeric", day: "numeric" }))}</div>
-        </button>
-        <div class="day-checks">
-          <form class="day-task-form" data-form="task">
-            <input name="title" required placeholder="체크박스 추가">
-            <input type="hidden" name="dueDate" value="${attr(day)}">
-            <input type="hidden" name="projectId" value="">
-            <button type="submit" title="추가">+</button>
-          </form>
-          ${tasks.length ? tasks.map((task) => `
-            <div class="day-check ${task.done ? "is-done" : ""}">
-              <input class="task-check" type="checkbox" data-task-id="${attr(task.id)}" ${task.done ? "checked" : ""} title="완료">
-              <input class="task-title-input" data-task-id="${attr(task.id)}" value="${attr(task.title)}" title="할 일 수정">
+        <div class="day-head">
+          <button class="day-head-select" data-select-date="${attr(day)}" title="이 날짜 열기">
+            <div class="day-head-main">
+              <span class="day-date-line">${esc(dayHeadLabel(day))}</span>
+              <span class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}">${mode === "actual" ? "Do" : "Plan"}</span>
             </div>
-          `).join("") : `<span class="day-empty">아직 체크박스가 없습니다.</span>`}
+          </button>
+          <button type="button" class="day-copy-plan" data-copy-day-plan="${attr(day)}" title="이 날의 Plan을 다른 날짜로 복사">Plan 복사</button>
+        </div>
+        <div class="day-checks">
+          ${renderDailyCheckForm(day)}
+          <div class="day-check-list ${dailyChecks.length > 3 ? "has-overflow" : ""}">
+            ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, day)).join("") : `<span class="day-empty">아직 체크박스가 없습니다.</span>`}
+          </div>
         </div>
         <div class="day-draw-board">
           <div class="day-axis">${renderTimeAxis()}</div>
-          <div class="draw-lane plan-draw-lane" data-draw-lane="plan" data-date="${attr(day)}" title="드래그해서 계획 라인 만들기">
-            <div class="draw-lane-title">계획</div>
-            ${plannedBlocks.map(renderPlanSegment).join("")}
-          </div>
-          <div class="draw-lane actual-draw-lane" data-draw-lane="actual" data-date="${attr(day)}" title="드래그해서 실행 라인 만들기">
-            <div class="draw-lane-title">실행</div>
-            ${actualBlocks.map(renderActualSegment).join("")}
+          <div class="draw-lane calendar-draw-lane ${mode === "actual" ? "is-actual-mode" : "is-plan-mode"}" data-draw-lane="${attr(mode)}" data-date="${attr(day)}" title="드래그해서 ${mode === "actual" ? "실행 기록" : "계획"} 만들기">
+            ${segments.map((segment) => renderCalendarSegment(segment, mode)).join("")}
           </div>
         </div>
       </div>
@@ -857,33 +1087,204 @@
     return rows.join("");
   }
 
+  function dayHeadLabel(date) {
+    return `${formatDate(date, { month: "numeric", day: "numeric" })} (${formatDate(date, { weekday: "short" })})`;
+  }
+
   function renderPlanSegment(block) {
     const category = categoryById(block.categoryId);
     const top = linePercent(block.start);
-    const height = durationPercent(block.start, block.end);
+    const height = durationPercent(block.start, block.end, 0);
     return `
-      <div class="time-segment plan-segment ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}" style="top:${top}%; height:${height}%; border-left-color:${attr(category.color)}">
+      <div class="time-segment plan-segment ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}" style="top:${top}%; height:${height}%; --segment-color:${attr(category.color)}; border-left-color:${attr(category.color)}">
         <div class="segment-head">
-          <strong>${esc(block.title)}</strong>
-          <span>${esc(block.start)}-${esc(block.end)}</span>
+          <strong class="segment-title">${multiline(block.title)}</strong>
+          <span class="segment-time">${esc(block.start)}-${esc(block.end)}</span>
         </div>
-        <label class="segment-cancel" title="취소 또는 완전 변경 표시">
-          <input class="cancel-check" type="checkbox" data-block-id="${attr(block.id)}" ${block.cancelled ? "checked" : ""}>
-          <span>취소</span>
-        </label>
         ${block.cancelled ? `<button class="cancel-memo" data-open-cancel="${attr(block.id)}" title="취소 메모 보기">취소: ${esc(shortText(block.cancelMemo || "메모 없음", 18))}</button>` : ""}
       </div>
     `;
   }
 
+  function actualMatchesPlan(block) {
+    if (!blockHasActualLine(block) || block.actualOnly) return false;
+    return String(block.actualText || block.title || "").trim() === String(block.title || "").trim();
+  }
+
+  function blockHasLinkedActual(block) {
+    return !block.actualOnly && blockHasActualLine(block);
+  }
+
+  function segmentDurationClass(start, end) {
+    const minutes = Math.max(0, minutesFromTime(end) - minutesFromTime(start));
+    if (minutes <= 30) return "is-tiny";
+    if (minutes <= 45) return "is-short";
+    if (minutes <= 60) return "is-compact";
+    return "";
+  }
+
+  function renderCalendarSegment(segment, mode = state.weekDrawMode || "plan", context = "week", selectedBlockId = "") {
+    const block = segment.block;
+    const isActual = segment.kind === "actual";
+    const isToday = context === "today";
+    const segmentMode = isActual ? "actual" : "plan";
+    const isReadonly = segmentMode !== mode;
+    const isLinkedPair = blockHasLinkedActual(block);
+    const isPlanSource = !isActual && mode === "actual" && !isLinkedPair;
+    const showPlanSummary = !isActual && mode === "actual" && isLinkedPair;
+    const showActualSummary = isActual && mode === "plan";
+    const summaryClass = showPlanSummary || showActualSummary ? "time-summary-segment" : "";
+    const actualAction = isActual && !isReadonly ? `data-edit-actual="${attr(block.id)}"` : "";
+    const planAction = mode === "plan"
+      ? `data-edit-plan="${attr(block.id)}"`
+      : mode === "actual" && isPlanSource
+        ? `data-copy-actual="${attr(block.id)}"`
+        : "";
+    const todayAction = isToday && !(isActual ? actualAction : planAction) ? `data-select-today-block="${attr(block.id)}"` : "";
+    const selectedClass = isToday && block.id === selectedBlockId ? "is-selected" : "";
+    const category = isActual
+      ? categoryById(block.actualCategoryId || block.categoryId)
+      : categoryById(block.categoryId);
+    const top = linePercent(segment.start);
+    const height = durationPercent(segment.start, segment.end, 0);
+    const left = segment.left;
+    const width = segment.width;
+    const sizeClass = segmentDurationClass(segment.start, segment.end);
+    const style = `top:${top}%; height:${height}%; left:calc(${left}% + 6px); width:calc(${width}% - 12px); --segment-color:${attr(category.color)}; border-left-color:${attr(category.color)}`;
+    if (isActual) {
+      return `
+        <div class="time-segment actual-segment calendar-segment ${isReadonly ? "is-readonly" : ""} ${isLinkedPair ? "is-linked-pair is-primary-actual" : ""} ${showActualSummary ? "actual-summary-segment" : ""} ${summaryClass} ${sizeClass} ${isToday ? "today-calendar-segment" : ""} ${selectedClass}" ${actualAction} ${todayAction} data-segment-id="${attr(block.id)}" data-segment-kind="actual" style="${style}">
+          <span class="segment-resize-handle top" data-resize-edge="start" title="시작 시간 조정"></span>
+          <div class="segment-head ${showActualSummary ? "plan-time-stack" : ""}">
+            ${showActualSummary
+              ? `<strong>${esc(segment.start)}</strong><span>${esc(segment.end)}</span>`
+              : `<strong class="segment-title">${multiline(block.actualText || block.title || "실행 내용")}</strong><span class="segment-time">${esc(segment.start)}-${esc(segment.end)}</span>`}
+          </div>
+          <span class="segment-resize-handle bottom" data-resize-edge="end" title="종료 시간 조정"></span>
+        </div>
+      `;
+    }
+    return `
+      <div class="time-segment plan-segment calendar-segment ${block.cancelled ? "is-cancelled" : ""} ${isReadonly ? "is-readonly" : ""} ${isPlanSource ? "is-do-source" : ""} ${isLinkedPair ? "is-linked-pair" : ""} ${showPlanSummary ? "plan-summary-segment" : ""} ${summaryClass} ${sizeClass} ${isToday ? "today-calendar-segment" : ""} ${selectedClass}" ${planAction} ${todayAction} data-segment-id="${attr(block.id)}" data-segment-kind="plan" style="${style}">
+        <span class="segment-resize-handle top" data-resize-edge="start" title="시작 시간 조정"></span>
+        <div class="segment-head ${showPlanSummary ? "plan-time-stack" : ""}">
+          ${showPlanSummary
+            ? `<strong>${esc(block.start)}</strong><span>${esc(block.end)}</span>`
+            : `<strong class="segment-title">${multiline(block.title)}</strong><span class="segment-time">계획 ${esc(block.start)}-${esc(block.end)}</span>`}
+        </div>
+        ${block.cancelled ? `<button class="cancel-memo" data-open-cancel="${attr(block.id)}" title="취소 메모 보기">취소: ${esc(shortText(block.cancelMemo || "메모 없음", 18))}</button>` : ""}
+        <span class="segment-resize-handle bottom" data-resize-edge="end" title="종료 시간 조정"></span>
+      </div>
+    `;
+  }
+
+  function layoutCalendarSegments(blocks, mode = state.weekDrawMode || "plan") {
+    const raw = [];
+    blocks.forEach((block) => {
+      if (!block.actualOnly) {
+        raw.push({
+          block,
+          kind: "plan",
+          start: block.start,
+          end: block.end,
+          startMinutes: minutesFromTime(block.start),
+          endMinutes: minutesFromTime(block.end)
+        });
+      }
+      if (blockHasActualLine(block)) {
+        const actualStart = block.actualStart || block.start;
+        const actualEnd = block.actualEnd || block.end;
+        raw.push({
+          block,
+          kind: "actual",
+          start: actualStart,
+          end: actualEnd,
+          startMinutes: minutesFromTime(actualStart),
+          endMinutes: minutesFromTime(actualEnd)
+        });
+      }
+    });
+
+    const sorted = raw
+      .filter((item) => item.endMinutes > item.startMinutes)
+      .sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
+
+    const groups = [];
+    sorted.forEach((item) => {
+      const group = groups.find((candidate) => item.startMinutes < candidate.endMinutes);
+      if (group) {
+        group.items.push(item);
+        group.endMinutes = Math.max(group.endMinutes, item.endMinutes);
+      } else {
+        groups.push({ items: [item], endMinutes: item.endMinutes });
+      }
+    });
+
+    groups.forEach((group) => {
+      const planItems = group.items.filter((item) => item.kind === "plan");
+      const actualItems = group.items.filter((item) => item.kind === "actual");
+      if (mode === "actual") {
+        const planSummaries = planItems.filter((item) => blockHasLinkedActual(item.block));
+        const sourcePlans = planItems
+          .filter((item) => !blockHasLinkedActual(item.block))
+          .sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
+        const primaryActuals = actualItems
+          .sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
+        if (planSummaries.length) {
+          assignSegmentColumns(planSummaries, 0, 18);
+        }
+        if (sourcePlans.length) {
+          assignSegmentColumns(sourcePlans, 0, 100);
+        }
+        if (primaryActuals.length) {
+          assignSegmentColumns(primaryActuals, planSummaries.length ? 14 : 0, planSummaries.length ? 86 : 100);
+        }
+      } else if (mode === "plan") {
+        const primaryItems = planItems;
+        const actualSummaries = actualItems;
+        if (primaryItems.length && actualSummaries.length) {
+          assignSegmentColumns(primaryItems, 0, 90);
+          assignSegmentColumns(actualSummaries, 78, 22);
+        } else if (actualSummaries.length) {
+          assignSegmentColumns(actualSummaries, 78, 22);
+        } else {
+          assignSegmentColumns(primaryItems, 0, 100);
+        }
+      } else {
+        assignSegmentColumns(group.items, 0, 100);
+      }
+    });
+
+    return sorted;
+  }
+
+  function assignSegmentColumns(items, leftOffset, totalWidth) {
+    const columns = [];
+    items.forEach((item) => {
+      let columnIndex = columns.findIndex((end) => item.startMinutes >= end);
+      if (columnIndex === -1) {
+        columnIndex = columns.length;
+        columns.push(item.endMinutes);
+      } else {
+        columns[columnIndex] = item.endMinutes;
+      }
+      item.columnIndex = columnIndex;
+    });
+    const columnCount = Math.max(columns.length, 1);
+    items.forEach((item) => {
+      item.width = totalWidth / columnCount;
+      item.left = leftOffset + item.columnIndex * item.width;
+    });
+  }
+
   function renderActualSegment(block) {
     const top = linePercent(block.actualStart || block.start);
-    const height = durationPercent(block.actualStart || block.start, block.actualEnd || block.end);
+    const height = durationPercent(block.actualStart || block.start, block.actualEnd || block.end, 0);
     return `
       <div class="time-segment actual-segment" data-edit-actual="${attr(block.id)}" style="top:${top}%; height:${height}%">
         <div class="segment-head">
-          <strong>${esc(block.actualText || "실행 내용")}</strong>
-          <span>${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}</span>
+          <strong class="segment-title">${multiline(block.actualText || "실행 내용")}</strong>
+          <span class="segment-time">${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}</span>
         </div>
       </div>
     `;
@@ -895,12 +1296,32 @@
     return `${clean.slice(0, max)}...`;
   }
 
+  function renderDontForgetField(weekStart, review) {
+    const id = `dont-forget-${weekStart}`;
+    return `
+      <div class="dont-forget-wrap">
+        <label class="dont-forget-field" for="${attr(id)}">
+          <span>Don't Forget</span>
+          <input id="${attr(id)}" class="dont-forget-input" data-week-start="${attr(weekStart)}" value="${attr(review.dontForget || "")}" placeholder="Remember...">
+        </label>
+      </div>
+    `;
+  }
+
+  function renderCheckStatusLegend() {
+    return `
+      <div class="status-legend week-status-legend" aria-label="체크 상태 설명">
+        ${checkStatuses.filter((status) => status.id !== "open").map((status) => `<span><i class="status-toggle is-${attr(status.id)}"><b class="status-icon" aria-hidden="true">${statusIconMarkup(status.id)}</b></i>${esc(status.label)}</span>`).join("")}
+      </div>
+    `;
+  }
+
   function renderWeeklyReviewForm(weekStart, review) {
     return `
       <form class="form-grid" data-form="weekly-review" data-week-start="${attr(weekStart)}">
         <div class="field">
           <label for="wins">이번 주 성과</label>
-          <textarea id="wins" name="wins" placeholder="완료한 일과 의미 있었던 장면">${esc(review.wins || "")}</textarea>
+          <textarea id="wins" name="wins" placeholder="완료한 일과 의미 있었던 결과">${esc(review.wins || "")}</textarea>
         </div>
         <div class="field">
           <label for="lessons">배운 점</label>
@@ -908,184 +1329,11 @@
         </div>
         <div class="field">
           <label for="next">다음 주 초점</label>
-          <textarea id="next" name="next" placeholder="줄일 일과 늘릴 일">${esc(review.next || "")}</textarea>
+          <textarea id="next" name="next" placeholder="줄일 일과 남길 일">${esc(review.next || "")}</textarea>
         </div>
         <button class="text-btn primary" type="submit">리뷰 저장</button>
       </form>
     `;
-  }
-
-  function renderPaperView() {
-    const weekStart = startOfWeek(state.currentDate);
-    const weekEnd = endOfWeek(state.currentDate);
-    const days = Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
-    const review = ensureWeeklyReview(weekStart);
-    return `
-      <form class="paper-page" data-form="paper-week" data-week-start="${attr(weekStart)}">
-        <div class="paper-header">
-          <div>
-            <p class="paper-kicker">Life Binder Weekly Sheet</p>
-            <h2>주간 바인더 시트</h2>
-          </div>
-          <div class="paper-date-box">
-            <span>${esc(monthTitle(state.currentDate))}</span>
-            <strong>${esc(formatDate(weekStart))} - ${esc(formatDate(weekEnd))}</strong>
-          </div>
-        </div>
-        <div class="paper-top">
-          <section class="paper-box paper-memory">
-            <h3>잊지 말 것</h3>
-            <textarea name="dontForget" placeholder="이번 주 꼭 기억할 일">${esc(review.dontForget || "")}</textarea>
-          </section>
-          <section class="paper-box">
-            <h3>업무 목표</h3>
-            ${renderPaperObjectives("businessObjectives", review.businessObjectives)}
-          </section>
-          <section class="paper-box">
-            <h3>개인 목표</h3>
-            ${renderPaperObjectives("personalObjectives", review.personalObjectives)}
-          </section>
-        </div>
-        <div class="paper-body">
-          <aside class="paper-side">
-            <section class="paper-box">
-              <h3>주간 회의 / 메모</h3>
-              <textarea name="meetingNotes" placeholder="회의, 약속, 준비할 자료">${esc(review.meetingNotes || "")}</textarea>
-            </section>
-            <section class="paper-box">
-              <h3>체크 / 습관</h3>
-              ${renderPaperHabitMatrix(review.habits)}
-            </section>
-            <section class="paper-box">
-              <h3>감사 / 마무리</h3>
-              <textarea name="thanks" placeholder="감사한 일, 칭찬, 주간 마무리">${esc(review.thanks || "")}</textarea>
-            </section>
-            <button class="text-btn primary" type="submit">페이퍼 저장</button>
-          </aside>
-          <section class="paper-week-grid">
-            ${days.map(renderPaperDay).join("")}
-          </section>
-        </div>
-      </form>
-    `;
-  }
-
-  function renderPaperObjectives(name, values) {
-    const items = normalizeFixedList(values, 5);
-    return `
-      <div class="paper-objectives">
-        ${items.map((item, idx) => `
-          <label>
-            <input type="checkbox" name="${attr(name)}Done${idx}" ${item.done ? "checked" : ""}>
-            <input name="${attr(name)}${idx}" value="${attr(item.text)}" placeholder="목표 ${idx + 1}">
-          </label>
-        `).join("")}
-      </div>
-    `;
-  }
-
-  function renderPaperHabitMatrix(values) {
-    const habits = normalizeHabitRows(values);
-    const dayLabels = ["월", "화", "수", "목", "금", "토", "일"];
-    return `
-      <div class="habit-matrix">
-        <div class="habit-head"></div>
-        ${dayLabels.map((day) => `<div class="habit-head">${day}</div>`).join("")}
-        ${habits.map((habit, row) => `
-          <input class="habit-name" name="habitName${row}" value="${attr(habit.name)}" placeholder="습관 ${row + 1}">
-          ${dayLabels.map((_, col) => `
-            <label class="habit-check">
-              <input type="checkbox" name="habit${row}_${col}" ${habit.days[col] ? "checked" : ""}>
-            </label>
-          `).join("")}
-        `).join("")}
-      </div>
-    `;
-  }
-
-  function renderPaperDay(day) {
-    const blocks = blocksForDate(day);
-    const tasks = state.tasks.filter((task) => task.dueDate === day);
-    const plans = blocks.filter((block) => !block.actualOnly);
-    const actuals = blocks.filter(blockHasActualLine);
-    return `
-      <article class="paper-day ${day === todayISO() ? "is-current" : ""}">
-        <button class="paper-day-head" data-select-date="${attr(day)}" type="button">
-          <strong>${esc(formatDate(day, { weekday: "short" }))}</strong>
-          <span>${esc(formatDate(day, { month: "numeric", day: "numeric" }))}</span>
-        </button>
-        <div class="paper-event">
-          <span>Event</span>
-          <strong>${plans.slice(0, 2).map((block) => esc(block.title)).join(", ") || " "}</strong>
-        </div>
-        <div class="paper-todo">
-          <span>To-do</span>
-          ${tasks.length ? tasks.slice(0, 5).map((task) => `
-            <label class="${task.done ? "is-done" : ""}">
-              <input class="task-check" type="checkbox" data-task-id="${attr(task.id)}" ${task.done ? "checked" : ""}>
-              <input class="task-title-input" data-task-id="${attr(task.id)}" value="${attr(task.title)}">
-            </label>
-          `).join("") : `<em>체크박스 없음</em>`}
-        </div>
-        ${renderPaperTimeline(plans, actuals)}
-      </article>
-    `;
-  }
-
-  function renderPaperTimeline(plans, actuals) {
-    const rows = [];
-    for (let hour = DAY_START_HOUR; hour < DAY_END_HOUR; hour += 1) {
-      const planItems = plans.filter((block) => overlapsHour(block.start, block.end, hour));
-      const actualItems = actuals.filter((block) => overlapsHour(block.actualStart || block.start, block.actualEnd || block.end, hour));
-      rows.push(`
-        <div class="paper-time-row">
-          <span class="paper-hour">${String(hour).padStart(2, "0")}</span>
-          <div class="paper-plan-cell">
-            ${planItems.map((block) => `
-              <button type="button" class="paper-plan ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}" title="계획 수정">
-                ${esc(shortText(block.title, 14))}
-                ${block.cancelled ? `<small data-open-cancel="${attr(block.id)}">취소 메모</small>` : ""}
-              </button>
-            `).join("")}
-          </div>
-          <div class="paper-actual-cell">
-            ${actualItems.map((block) => `
-              <button type="button" class="paper-actual" data-edit-actual="${attr(block.id)}" title="실행 수정">
-                ${esc(shortText(block.actualText || block.title, 14))}
-              </button>
-            `).join("")}
-          </div>
-        </div>
-      `);
-    }
-    return `<div class="paper-timeline">${rows.join("")}</div>`;
-  }
-
-  function overlapsHour(start, end, hour) {
-    const from = minutesFromTime(start);
-    const to = minutesFromTime(end);
-    return from < (hour + 1) * 60 && to > hour * 60;
-  }
-
-  function normalizeFixedList(values, count) {
-    const source = Array.isArray(values) ? values : [];
-    return Array.from({ length: count }, (_, idx) => {
-      const item = source[idx];
-      if (typeof item === "string") return { text: item, done: false };
-      return { text: item?.text || "", done: Boolean(item?.done) };
-    });
-  }
-
-  function normalizeHabitRows(values) {
-    const source = Array.isArray(values) ? values : [];
-    return Array.from({ length: 4 }, (_, idx) => {
-      const item = source[idx] || {};
-      const days = Array.isArray(item.days) ? item.days : [];
-      return {
-        name: item.name || "",
-        days: Array.from({ length: 7 }, (_, dayIdx) => Boolean(days[dayIdx]))
-      };
-    });
   }
 
   function renderMonthView() {
@@ -1095,52 +1343,34 @@
     const first = new Date(year, month, 1);
     const gridStart = new Date(first);
     const firstDay = first.getDay();
-    gridStart.setDate(first.getDate() - (firstDay === 0 ? 6 : firstDay - 1));
+    gridStart.setDate(first.getDate() - firstDay);
     const days = Array.from({ length: 42 }, (_, idx) => {
       const d = new Date(gridStart);
       d.setDate(gridStart.getDate() + idx);
       return toISO(d);
     });
     return `
-      <div class="full-grid">
-        <section class="panel sheet">
+      <div class="month-page">
+        <section class="panel sheet month-main-panel">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">월간 로드맵</h2>
-              <p class="panel-subtitle">프로젝트 마일스톤과 반복 루틴을 한 달 단위로 봅니다.</p>
+              <h2 class="panel-title">월간</h2>
+              <p class="panel-subtitle">주별 흐름과 날짜별 체크 항목을 한 화면에서 훑어봅니다.</p>
             </div>
           </div>
           <div class="panel-body month-scroll">
-            <div class="month-grid">
-              ${["월", "화", "수", "목", "금", "토", "일"].map((name) => `<div class="month-head">${name}</div>`).join("")}
-              ${days.map((day) => renderMonthCell(day, month)).join("")}
+            <div class="month-board">
+              ${renderMonthWeekSummaries(days, month)}
+              <div class="month-calendar-wrap">
+                <div class="month-grid">
+                  ${["일", "월", "화", "수", "목", "금", "토"].map((name, idx) => `<div class="month-head ${idx === 0 ? "is-sunday" : ""}">${name}</div>`).join("")}
+                  ${days.map((day) => renderMonthCell(day, month)).join("")}
+                </div>
+              </div>
             </div>
           </div>
         </section>
-        <div class="view-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">선택일 일정 추가</h2>
-                <p class="panel-subtitle">${esc(formatDate(state.currentDate))}</p>
-              </div>
-            </div>
-            <div class="panel-body">${renderScheduleForm(state.currentDate)}</div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">이번 달 프로젝트</h2>
-                <p class="panel-subtitle">마감일이 이번 달인 프로젝트입니다.</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="list">
-                ${renderMonthlyProjects(year, month)}
-              </div>
-            </div>
-          </section>
-        </div>
+        ${renderMonthCheckEditor()}
       </div>
     `;
   }
@@ -1149,33 +1379,131 @@
     const date = parseISO(day);
     const isMuted = date.getMonth() !== currentMonth;
     const isSelected = day === state.currentDate;
-    const blocks = blocksForDate(day);
-    const tasks = state.tasks.filter((task) => task.dueDate === day);
+    const checks = ensureDailyLog(day).checks || [];
     return `
-      <button class="month-cell ${isMuted ? "is-muted" : ""} ${isSelected ? "is-selected" : ""}" data-select-date="${attr(day)}">
+      <button class="month-cell ${isMuted ? "is-muted" : ""} ${isSelected ? "is-selected" : ""} ${checks.length > 4 ? "has-many-checks" : ""}" data-select-date="${attr(day)}">
         <div class="month-number">
-          <span>${date.getDate()}</span>
-          <span>${blocks.length + tasks.length ? `${blocks.length + tasks.length}건` : ""}</span>
+          <span class="month-date-pill">${date.getDate()}</span>
+          <span class="month-check-count">${checks.length ? `${checks.filter(checkIsDone).length}/${checks.length}` : ""}</span>
         </div>
-        <div class="month-dots">
-          ${blocks.slice(0, 6).map((block) => {
-            const category = categoryById(block.categoryId);
-            return `<span class="month-dot" style="background:${attr(category.color)}" title="${attr(block.title)}"></span>`;
-          }).join("")}
-          ${tasks.slice(0, 3).map(() => `<span class="month-dot" style="background:#667085" title="할 일"></span>`).join("")}
+        <div class="month-checks">
+          ${checks.map(renderMonthCheckChip).join("")}
         </div>
       </button>
     `;
   }
 
+  function renderMonthCheckEditor() {
+    if (!monthEditorDate) return "";
+    const checks = ensureDailyLog(monthEditorDate).checks || [];
+    return `
+      <div class="month-editor-backdrop" data-close-month-editor></div>
+      <section class="panel month-day-editor" role="dialog" aria-label="월간 날짜 체크항목 편집">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">${esc(dayHeadLabel(monthEditorDate))}</h2>
+            <p class="panel-subtitle">체크항목을 추가, 수정, 삭제합니다.</p>
+          </div>
+          <button type="button" class="icon-btn" data-close-month-editor title="닫기">×</button>
+        </div>
+        <div class="panel-body">
+          ${renderDailyCheckForm(monthEditorDate)}
+          <div class="list month-editor-check-list">
+            ${checks.length ? checks.map((item, idx) => renderDailyCheckRow(item, idx, monthEditorDate)).join("") : `<div class="empty">체크항목이 없습니다.</div>`}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderMonthCheckChip(item) {
+    const status = statusById(normalizeCheckStatus(item));
+    return `<span class="month-check-chip ${status.id === "done" ? "is-done" : ""} ${checkStatusClass(item)}"><i class="month-check-icon status-toggle is-${attr(status.id)}" aria-hidden="true"><b class="status-icon">${statusIconMarkup(status.id)}</b></i><b>${esc(shortText(item.title || "", 18))}</b></span>`;
+  }
+
+  function renderMonthWeekSummaries(days, currentMonth) {
+    const weekStarts = days.filter((_, idx) => idx % 7 === 0);
+    return `
+      <div class="month-week-summaries">
+        <div class="month-summary-head">주간 요약</div>
+        ${weekStarts.map((weekStart) => renderMonthWeekSummary(weekStart, currentMonth)).join("")}
+      </div>
+    `;
+  }
+
+  function renderMonthWeekSummary(weekStart, currentMonth) {
+    const weekDays = Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
+    const weekEnd = weekDays[6];
+    const weekBlocks = state.blocks.filter((block) => block.date >= weekStart && block.date <= weekEnd);
+    const weekChecks = weekDays.flatMap((day) => ensureDailyLog(day).checks || []);
+    const doneChecks = weekChecks.filter(checkIsDone).length;
+    const planMinutes = weekBlocks
+      .filter((block) => !block.actualOnly && !block.cancelled)
+      .reduce((sum, block) => sum + Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start)), 0);
+    const doMinutes = weekBlocks
+      .filter(blockHasActualLine)
+      .reduce((sum, block) => sum + Math.max(0, minutesFromTime(block.actualEnd || block.end) - minutesFromTime(block.actualStart || block.start)), 0);
+    const categoryMinutes = categories.map((category) => {
+      const minutes = weekBlocks
+        .filter((block) => block.categoryId === category.id || block.actualCategoryId === category.id)
+        .reduce((sum, block) => {
+          const planned = !block.actualOnly && !block.cancelled && block.categoryId === category.id
+            ? Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start))
+            : 0;
+          const actual = blockHasActualLine(block) && (block.actualCategoryId || block.categoryId) === category.id
+            ? Math.max(0, minutesFromTime(block.actualEnd || block.end) - minutesFromTime(block.actualStart || block.start))
+            : 0;
+          return sum + planned + actual;
+        }, 0);
+      return { category, minutes };
+    }).filter((item) => item.minutes > 0).sort((a, b) => b.minutes - a.minutes);
+    const mainCategory = categoryMinutes[0]?.category || null;
+    const title = `${esc(formatDate(weekStart, { month: "numeric", day: "numeric" }))} - ${esc(formatDate(weekEnd, { month: "numeric", day: "numeric" }))}`;
+    const summary = `Plan ${minutesToShortText(planMinutes)} · Do ${minutesToShortText(doMinutes)} · 체크 ${doneChecks}/${weekChecks.length}`;
+    return `
+      <button type="button" class="month-week-summary" data-select-date="${attr(weekStart)}">
+        <span class="month-week-range">${title}</span>
+        <strong>${mainCategory ? esc(mainCategory.name) : "기록 없음"}</strong>
+        <p>${esc(summary)}</p>
+        <div class="month-week-tags">
+          ${categoryMinutes.slice(0, 3).map(({ category, minutes }) => `<i style="--summary-color:${attr(category.color)}">${esc(category.name)} ${esc(minutesToShortText(minutes))}</i>`).join("") || `<em>아직 배분 없음</em>`}
+        </div>
+      </button>
+    `;
+  }
+
+  function minutesToShortText(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h && m) return `${h}h${m}m`;
+    if (h) return `${h}h`;
+    return `${m}m`;
+  }
+
+  function renderMonthProjectForm(year, month) {
+    const firstDay = toISO(new Date(year, month, 1));
+    return `
+      <form class="quick-line week-task-form" data-form="task">
+        <div class="field">
+          <label for="month-project-title">이번 달 프로젝트</label>
+          <input id="month-project-title" name="title" required placeholder="이번 달 프로젝트 체크박스">
+          <input type="hidden" name="projectId" value="">
+          <input type="hidden" name="dueDate" value="${attr(firstDay)}">
+          <input type="hidden" name="weekStart" value="${attr(startOfWeek(firstDay))}">
+          <input type="hidden" name="scope" value="monthProject">
+        </div>
+        <button class="icon-btn primary week-task-add" type="submit" title="이번 달 프로젝트 추가">+</button>
+      </form>
+    `;
+  }
   function renderMonthlyProjects(year, month) {
-    const items = state.projects.filter((project) => {
-      if (!project.dueDate) return false;
-      const due = parseISO(project.dueDate);
+    const items = state.tasks.filter((task) => {
+      if ((task.scope || "") !== "monthProject" || !task.dueDate) return false;
+      const due = parseISO(task.dueDate);
       return due.getFullYear() === year && due.getMonth() === month;
     });
-    if (!items.length) return `<div class="empty">이번 달 마감 프로젝트가 없습니다.</div>`;
-    return items.map(renderProjectRow).join("");
+    if (!items.length) return `<div class="empty">이번 달 프로젝트 체크박스가 없습니다.</div>`;
+    return items.map(renderTaskRow).join("");
   }
 
   function renderGoalsView() {
@@ -1185,7 +1513,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">목표 목록</h2>
-              <p class="panel-subtitle">연간 방향을 월간, 주간, 일간 행동으로 내려보냅니다.</p>
+              <p class="panel-subtitle">연간 방향을 월간, 주간, 일간 행동으로 내려봅니다.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -1198,7 +1526,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">목표 추가</h2>
-              <p class="panel-subtitle">구체적인 기간과 영역을 함께 남깁니다.</p>
+              <p class="panel-subtitle">구체적인 기간과 영역을 함께 적습니다.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -1266,7 +1594,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">프로젝트 추가</h2>
-              <p class="panel-subtitle">목표와 연결하면 주간 계획에서 더 잘 보입니다.</p>
+              <p class="panel-subtitle">목표와 연결하면 주간 계획에서 함께 보입니다.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -1308,7 +1636,7 @@
         ${renderProjectRow(project)}
         <div class="tag-line">
           ${goal ? `<span class="tag">목표: ${esc(goal.title)}</span>` : `<span class="tag">목표 없음</span>`}
-          <span class="tag">할 일 ${tasks.filter((task) => task.done).length}/${tasks.length}</span>
+          <span class="tag">완료 ${tasks.filter((task) => task.done).length}/${tasks.length}</span>
         </div>
         <div class="list" style="margin-top: 12px;">
           ${tasks.slice(0, 4).map(renderTaskRow).join("") || `<div class="empty">프로젝트 할 일이 없습니다.</div>`}
@@ -1440,7 +1768,7 @@
           </div>
           <div class="panel-body review-box">
             <textarea class="daily-review" data-review-date="${attr(date)}" placeholder="오늘의 회고">${esc(daily.text || "")}</textarea>
-            <span class="save-hint">오늘 화면의 회고와 같은 데이터입니다.</span>
+            <span class="save-hint">오늘 탭의 회고와 같은 데이터입니다.</span>
           </div>
         </section>
         <section class="panel sheet">
@@ -1486,7 +1814,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">영역별 시간</h2>
-                <p class="panel-subtitle">이번 주 계획된 시간 블록 기준입니다.</p>
+                <p class="panel-subtitle">이번 주 계획 시간 블록 기준입니다.</p>
               </div>
             </div>
             <div class="panel-body">${renderStatsBars(allStats)}</div>
@@ -1495,7 +1823,7 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">목표별 투입 시간</h2>
-                <p class="panel-subtitle">목표와 연결되지 않은 시간도 확인합니다.</p>
+                <p class="panel-subtitle">목표와 연결된 계획 시간을 확인합니다.</p>
               </div>
             </div>
             <div class="panel-body">${renderGoalStats(goalStats)}</div>
@@ -1512,58 +1840,36 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">주요 기능 예시</h2>
-              <p class="panel-subtitle">계획, 실행, 체크, 리뷰가 어떻게 이어지는지 빠르게 확인합니다.</p>
+              <p class="panel-subtitle">계획을 세우고, 실행을 덮어쓰고, 체크리스트와 회고로 한 주를 확인하는 흐름입니다.</p>
             </div>
           </div>
           <div class="panel-body">
             <div class="guide-grid">
-              ${renderGuideCard("1", "계획 드래그", "계획 레인 09:00-10:00", "주간 화면의 계획 레인을 클릭한 채 아래로 끌면 계획 시간 라인이 생깁니다.")}
-              ${renderGuideCard("2", "실행 드래그", "실행 레인 09:10-09:55", "실행 후 실제로 쓴 시간만 실행 레인에 긋고, 실행 내용을 입력합니다.")}
-              ${renderGuideCard("3", "체크박스", "자료 조사, 전화, 운동", "요일별 체크박스를 주간 화면에서 바로 추가하고 제목도 수정할 수 있습니다.")}
-              ${renderGuideCard("4", "취소 메모", "취소: 외부 회의로 변경", "계획이 취소되거나 완전히 바뀌면 취소 체크를 켜고 메모를 남깁니다.")}
+              ${renderGuideCard("1", "Plan으로 계획하기", "05:00부터 24:00까지 15분 단위", "주간 탭에서 드래그로 계획 시간을 만들고, 필요한 경우 다시 끌어서 시간을 조정합니다.")}
+              ${renderGuideCard("2", "Do로 실행 기록하기", "계획을 눌러 실제 실행 작성", "Do 모드에서는 계획 카드를 먼저 크게 확인하고, 클릭해 실행을 저장하면 Plan/Do가 나란히 정리됩니다.")}
+              ${renderGuideCard("3", "체크리스트 분리", "주간 체크와 일일 체크를 따로 관리", "일일 체크박스는 하루마다, 주간 체크박스는 한 주 동안 확인할 항목으로 분리해 관리합니다.")}
+              ${renderGuideCard("4", "오늘 상세 기록", "필요한 일정만 메모와 첨부 추가", "오늘 탭에서 일정을 선택하면 옆 패널에서 세부 메모, 사진, 자료를 그 일정에 연결해 남길 수 있습니다.")}
             </div>
           </div>
         </section>
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">예시 시간표</h2>
-              <p class="panel-subtitle">실행을 적으면 이런 식으로 표시됩니다.</p>
+              <h2 class="panel-title">표시 방식</h2>
+              <p class="panel-subtitle">Do를 저장한 일정은 실행 내용이 중심이 되고, Plan은 계획한 시간만 좁게 붙어 확인됩니다.</p>
             </div>
           </div>
           <div class="panel-body">
-            <div class="guide-sample">
-              <div class="guide-sample-row">
-                <div class="timeline-hour">09:00</div>
-                <div class="timeline-lane plan-lane">
-                  <div class="lane-title">계획</div>
-                  <div class="plan-line is-executed" style="border-left-color:#0f766e">
-                    <label class="inline-check">
-                      <input type="checkbox" checked disabled>
-                      <span>09:00-10:00 주간 계획 작성</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="timeline-lane actual-lane">
-                  <div class="lane-title">실행</div>
-                  <input class="actual-input is-executed" value="핵심 목표 3개 정리" disabled>
-                </div>
+            <div class="guide-sample compact-schedule-sample">
+              <div class="sample-plan-rail"><strong>05:00</strong><span>07:00</span></div>
+              <div class="sample-do-card">
+                <strong>기상, 아침식사, 새벽기도</strong>
+                <span>05:00-07:00</span>
               </div>
-              <div class="guide-sample-row">
-                <div class="timeline-hour">10:00</div>
-                <div class="timeline-lane plan-lane">
-                  <div class="lane-title">계획</div>
-                  <div class="plan-line" style="border-left-color:#5b57c8">
-                    <label class="inline-check">
-                      <input type="checkbox" disabled>
-                      <span>10:00-11:00 자료 읽기</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="timeline-lane actual-lane">
-                  <div class="lane-title">실행</div>
-                  <input class="actual-input" placeholder="실행한 내용" disabled>
-                </div>
+              <div class="sample-plan-rail blue"><strong>07:00</strong><span>09:30</span></div>
+              <div class="sample-do-card blue">
+                <strong>자전거 출근, 샤워</strong>
+                <span>07:00-09:30</span>
               </div>
             </div>
           </div>
@@ -1610,8 +1916,11 @@
   }
 
   function bindEvents() {
+    setupWeekTopScroll();
+
     app.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", () => {
+        if (button.dataset.view !== "month") monthEditorDate = null;
         setState((draft) => {
           draft.activeView = button.dataset.view;
         });
@@ -1621,6 +1930,7 @@
     app.querySelectorAll("[data-date-shift]").forEach((button) => {
       button.addEventListener("click", () => {
         const direction = Number(button.dataset.dateShift);
+        if (state.activeView === "month") monthEditorDate = null;
         setState((draft) => {
           if (draft.activeView === "month") draft.currentDate = addMonths(draft.currentDate, direction);
           else if (draft.activeView === "week") draft.currentDate = addDays(draft.currentDate, direction * 7);
@@ -1632,8 +1942,10 @@
     const todayButton = app.querySelector("[data-today]");
     if (todayButton) {
       todayButton.addEventListener("click", () => {
+        if (state.activeView === "month") monthEditorDate = null;
         setState((draft) => {
           draft.currentDate = todayISO();
+          draft.todayDetailBlockId = "";
         });
       });
     }
@@ -1645,10 +1957,25 @@
 
     app.querySelectorAll("[data-select-date]").forEach((button) => {
       button.addEventListener("click", () => {
+        const selectedDate = button.dataset.selectDate;
+        if (state.activeView === "month") {
+          monthEditorDate = selectedDate;
+          setState((draft) => {
+            draft.currentDate = selectedDate;
+          });
+          return;
+        }
         setState((draft) => {
-          draft.currentDate = button.dataset.selectDate;
-          draft.activeView = "week";
+          draft.currentDate = selectedDate;
+          draft.activeView = draft.activeView === "month" ? "month" : "week";
         });
+      });
+    });
+
+    app.querySelectorAll("[data-close-month-editor]").forEach((button) => {
+      button.addEventListener("click", () => {
+        monthEditorDate = null;
+        render();
       });
     });
 
@@ -1656,11 +1983,58 @@
       form.addEventListener("submit", handleFormSubmit);
     });
 
-    app.querySelectorAll(".task-check").forEach((input) => {
+    app.querySelectorAll("[data-close-schedule-popup]").forEach((button) => {
+      button.addEventListener("click", () => {
+        closeSchedulePopup();
+      });
+    });
+
+    app.querySelectorAll("[data-delete-schedule-popup]").forEach((button) => {
+      button.addEventListener("click", () => {
+        deleteSchedulePopupTarget();
+      });
+    });
+
+    app.querySelectorAll(".popover-categories input").forEach((input) => {
+      input.addEventListener("change", () => {
+        if (!input.checked) {
+          input.checked = true;
+          return;
+        }
+        app.querySelectorAll(".popover-categories input").forEach((other) => {
+          if (other !== input) other.checked = false;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-week-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          draft.weekDrawMode = button.dataset.weekMode;
+        });
+      });
+    });
+
+    app.querySelectorAll(".dont-forget-input").forEach((input) => {
       input.addEventListener("change", () => {
         setState((draft) => {
+          const weekStart = input.dataset.weekStart;
+          const existing = draft.reviews.weekly[weekStart] || {};
+          draft.reviews.weekly[weekStart] = {
+            ...existing,
+            dontForget: input.value.trim()
+          };
+        });
+      });
+    });
+
+    app.querySelectorAll(".task-status").forEach((input) => {
+      input.addEventListener("click", () => {
+        setState((draft) => {
           const task = draft.tasks.find((item) => item.id === input.dataset.taskId);
-          if (task) task.done = input.checked;
+          if (!task) return;
+          task.status = nextCheckStatus(task.status || (task.done ? "done" : "open"));
+          task.done = task.status === "done";
         });
       });
     });
@@ -1670,6 +2044,37 @@
         setState((draft) => {
           const task = draft.tasks.find((item) => item.id === input.dataset.taskId);
           if (task) task.title = input.value.trim() || task.title;
+        });
+      });
+    });
+
+    app.querySelectorAll(".daily-check-status").forEach((input) => {
+      input.addEventListener("click", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, input.dataset.checkDate);
+          const item = log.checks[Number(input.dataset.checkIndex)];
+          if (!item) return;
+          item.status = nextCheckStatus(item.status || (item.done ? "done" : "open"));
+          item.done = item.status === "done";
+        });
+      });
+    });
+
+    app.querySelectorAll(".daily-check-title").forEach((input) => {
+      input.addEventListener("change", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, input.dataset.checkDate);
+          const item = log.checks[Number(input.dataset.checkIndex)];
+          if (item) item.title = input.value.trim() || item.title;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-delete-daily-check]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, button.dataset.deleteDailyCheck);
+          log.checks.splice(Number(button.dataset.checkIndex), 1);
         });
       });
     });
@@ -1695,6 +2100,14 @@
             }
             block.actualDone = blockHasActualLine(block);
           }
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-select-today-block]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          draft.todayDetailBlockId = button.dataset.selectTodayBlock;
         });
       });
     });
@@ -1727,33 +2140,6 @@
       });
     });
 
-    app.querySelectorAll(".cancel-check").forEach((input) => {
-      input.addEventListener("change", () => {
-        if (input.checked) {
-          const memo = window.prompt("취소 또는 완전 변경된 이유를 짧게 남겨주세요.", "계획 취소");
-          if (memo === null) {
-            input.checked = false;
-            return;
-          }
-          setState((draft) => {
-            const block = draft.blocks.find((item) => item.id === input.dataset.blockId);
-            if (block) {
-              block.cancelled = true;
-              block.cancelMemo = memo.trim() || "계획 취소";
-            }
-          });
-        } else {
-          setState((draft) => {
-            const block = draft.blocks.find((item) => item.id === input.dataset.blockId);
-            if (block) {
-              block.cancelled = false;
-              block.cancelMemo = "";
-            }
-          });
-        }
-      });
-    });
-
     app.querySelectorAll("[data-open-cancel]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -1762,20 +2148,50 @@
       });
     });
 
+    app.querySelectorAll("[data-copy-actual]").forEach((segment) => {
+      segment.addEventListener("click", (event) => {
+        if (segment.dataset.dragged === "true") {
+          delete segment.dataset.dragged;
+          return;
+        }
+        if (event.target.closest("input,label,.cancel-memo,[data-open-cancel]")) return;
+        createActualFromPlan(segment.dataset.copyActual);
+      });
+    });
+
+    app.querySelectorAll("[data-copy-day-plan]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        copyDayPlan(button.dataset.copyDayPlan);
+      });
+    });
+
     app.querySelectorAll("[data-edit-plan]").forEach((segment) => {
       segment.addEventListener("click", (event) => {
+        if (segment.dataset.dragged === "true") {
+          delete segment.dataset.dragged;
+          return;
+        }
         if (event.target.closest("input,label,.cancel-memo,[data-open-cancel]")) return;
-        editPlanBlock(segment.dataset.editPlan);
+        editPlanBlock(segment.dataset.editPlan, event);
       });
     });
 
     app.querySelectorAll("[data-edit-actual]").forEach((segment) => {
-      segment.addEventListener("click", () => {
-        editActualBlock(segment.dataset.editActual);
+      segment.addEventListener("click", (event) => {
+        if (segment.dataset.dragged === "true") {
+          delete segment.dataset.dragged;
+          return;
+        }
+        editActualBlock(segment.dataset.editActual, event);
       });
     });
 
-    app.querySelectorAll(".draw-lane").forEach((lane) => {
+    app.querySelectorAll(".calendar-segment").forEach((segment) => {
+      segment.addEventListener("pointerdown", startEditDrag);
+    });
+
+    app.querySelectorAll(".draw-lane[data-draw-lane]").forEach((lane) => {
       lane.addEventListener("pointerdown", startDrawLine);
     });
 
@@ -1837,6 +2253,26 @@
     });
   }
 
+  function setupWeekTopScroll() {
+    const topScroll = app.querySelector("[data-week-top-scroll]");
+    const plannerScroll = app.querySelector(".week-planner-scroll");
+    const topInner = topScroll?.querySelector(".week-top-scroll-inner");
+    if (!topScroll || !plannerScroll || !topInner) return;
+    topInner.style.width = `${plannerScroll.scrollWidth}px`;
+    topScroll.scrollLeft = plannerScroll.scrollLeft;
+    let syncing = false;
+    const sync = (from, to) => {
+      if (syncing) return;
+      syncing = true;
+      to.scrollLeft = from.scrollLeft;
+      window.requestAnimationFrame(() => {
+        syncing = false;
+      });
+    };
+    topScroll.addEventListener("scroll", () => sync(topScroll, plannerScroll));
+    plannerScroll.addEventListener("scroll", () => sync(plannerScroll, topScroll));
+  }
+
   function startDrawLine(event) {
     if (event.button !== 0) return;
     if (event.target.closest(".time-segment,input,button,label,textarea,select")) return;
@@ -1862,21 +2298,192 @@
     event.preventDefault();
   }
 
+  function openSchedulePopup(config) {
+    schedulePopup = {
+      mode: config.mode,
+      action: config.action,
+      blockId: config.blockId || "",
+      date: config.date || state.currentDate,
+      start: config.start || "",
+      end: config.end || "",
+      title: config.title || "",
+      categoryId: normalizeCategoryId(config.categoryId),
+      lockCategory: Boolean(config.lockCategory),
+      x: 24,
+      y: 24
+    };
+    const position = popupPosition(config.x || 0, config.y || 0);
+    schedulePopup.x = position.x;
+    schedulePopup.y = position.y;
+    render();
+    setTimeout(() => {
+      const field = app.querySelector(".schedule-popover textarea");
+      if (field) field.focus();
+    }, 0);
+  }
+
+  function popupPosition(x, y) {
+    const width = 560;
+    const height = 500;
+    const margin = 16;
+    const maxX = Math.max(margin, (window.innerWidth || width + margin * 2) - width - margin);
+    const maxY = Math.max(margin, (window.innerHeight || height + margin * 2) - height - margin);
+    return {
+      x: Math.max(margin, Math.min(x + 12, maxX)),
+      y: Math.max(margin, Math.min(y + 12, maxY))
+    };
+  }
+
+  function closeSchedulePopup() {
+    schedulePopup = null;
+    render();
+  }
+
+  function startEditDrag(event) {
+    if (event.button !== 0) return;
+    if (event.target.closest("input,button,label,.cancel-memo,[data-open-cancel]")) return;
+    const segment = event.currentTarget;
+    if (segment.classList.contains("is-readonly")) {
+      event.stopPropagation();
+      return;
+    }
+    const lane = segment.closest(".draw-lane");
+    const block = state.blocks.find((item) => item.id === segment.dataset.segmentId);
+    if (!lane || !block) return;
+
+    const kind = segment.dataset.segmentKind;
+    const edge = event.target.dataset.resizeEdge;
+    const mode = edge === "start" ? "resize-start" : edge === "end" ? "resize-end" : "move";
+    const startTime = kind === "actual" ? (block.actualStart || block.start) : block.start;
+    const endTime = kind === "actual" ? (block.actualEnd || block.end) : block.end;
+    editDragState = {
+      blockId: block.id,
+      kind,
+      mode,
+      lane,
+      segment,
+      pointerId: event.pointerId,
+      startPointer: minutesFromPointer(lane, event),
+      originalStart: minutesFromTime(startTime),
+      originalEnd: minutesFromTime(endTime),
+      moved: false
+    };
+    segment.setPointerCapture(event.pointerId);
+    segment.addEventListener("pointermove", updateEditDrag);
+    segment.addEventListener("pointerup", finishEditDrag);
+    segment.addEventListener("pointercancel", cancelEditDrag);
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  function updateEditDrag(event) {
+    if (!editDragState) return;
+    const pointer = minutesFromPointer(editDragState.lane, event);
+    const next = nextEditDragRange(pointer);
+    const pointerDelta = Math.abs(pointer - editDragState.startPointer);
+    if (pointerDelta >= SNAP_MINUTES) editDragState.moved = true;
+    updateSegmentLivePosition(editDragState.segment, next.start, next.end);
+  }
+
+  function finishEditDrag(event) {
+    if (!editDragState) return;
+    updateEditDrag(event);
+    const next = nextEditDragRange(minutesFromPointer(editDragState.lane, event));
+    const drag = editDragState;
+    drag.segment.removeEventListener("pointermove", updateEditDrag);
+    drag.segment.removeEventListener("pointerup", finishEditDrag);
+    drag.segment.removeEventListener("pointercancel", cancelEditDrag);
+    if (drag.segment.hasPointerCapture(drag.pointerId)) {
+      drag.segment.releasePointerCapture(drag.pointerId);
+    }
+    if (drag.moved) {
+      drag.segment.dataset.dragged = "true";
+      setState((draft) => {
+        const target = draft.blocks.find((item) => item.id === drag.blockId);
+        if (!target) return;
+        const start = timeFromMinutes(next.start);
+        const end = timeFromMinutes(next.end);
+        if (drag.kind === "actual") {
+          target.actualStart = start;
+          target.actualEnd = end;
+          target.actualDone = true;
+          if (target.actualOnly) {
+            target.start = start;
+            target.end = end;
+          }
+        } else {
+          target.start = start;
+          target.end = end;
+        }
+      });
+    }
+    editDragState = null;
+  }
+
+  function cancelEditDrag() {
+    if (!editDragState) return;
+    editDragState.segment.removeEventListener("pointermove", updateEditDrag);
+    editDragState.segment.removeEventListener("pointerup", finishEditDrag);
+    editDragState.segment.removeEventListener("pointercancel", cancelEditDrag);
+    editDragState = null;
+    render();
+  }
+
+  function nextEditDragRange(pointer) {
+    const drag = editDragState;
+    const min = DAY_START_HOUR * 60;
+    const max = DAY_END_HOUR * 60;
+    const minDuration = SNAP_MINUTES;
+    let start = drag.originalStart;
+    let end = drag.originalEnd;
+    if (drag.mode === "move") {
+      const duration = end - start;
+      let delta = pointer - drag.startPointer;
+      start = Math.max(min, Math.min(max - duration, drag.originalStart + delta));
+      end = start + duration;
+    } else if (drag.mode === "resize-start") {
+      start = Math.max(min, Math.min(pointer, drag.originalEnd - minDuration));
+    } else {
+      end = Math.min(max, Math.max(pointer, drag.originalStart + minDuration));
+    }
+    return { start, end };
+  }
+
+  function updateSegmentLivePosition(segment, start, end) {
+    segment.style.top = `${linePercent(timeFromMinutes(start))}%`;
+    segment.style.height = `${durationPercent(timeFromMinutes(start), timeFromMinutes(end), 0)}%`;
+    segment.classList.remove("is-tiny", "is-short", "is-compact");
+    const sizeClass = segmentDurationClass(timeFromMinutes(start), timeFromMinutes(end));
+    if (sizeClass) segment.classList.add(sizeClass);
+    const label = segment.querySelector(".segment-head span");
+    if (label) {
+      if (segment.dataset.segmentKind === "actual") {
+        label.textContent = `${timeFromMinutes(start)}-${timeFromMinutes(end)}`;
+      } else {
+        label.textContent = `계획 ${timeFromMinutes(start)}-${timeFromMinutes(end)}`;
+      }
+    }
+  }
+
   function handleBlockPhotoUpload(input) {
     const blockId = input.dataset.blockId;
-    const files = Array.from(input.files || []).filter((file) => file.type.startsWith("image/"));
+    const files = Array.from(input.files || []);
     if (!files.length) return;
-    Promise.all(files.slice(0, 6).map(readFileAsDataUrl))
-      .then((photos) => {
+    Promise.all(files.slice(0, 6).map((file) => readFileAsDataUrl(file).then((data) => ({
+      name: file.name,
+      type: file.type,
+      data
+    }))))
+      .then((attachments) => {
         setState((draft) => {
           const block = draft.blocks.find((item) => item.id === blockId);
           if (block) {
-            block.photos = [...(block.photos || []), ...photos].slice(0, 12);
+            block.photos = [...(block.photos || []), ...attachments].slice(0, 12);
           }
         });
       })
       .catch(() => {
-        window.alert("사진을 불러오지 못했습니다.");
+        window.alert("첨부 파일을 불러오지 못했습니다.");
       });
   }
 
@@ -1894,11 +2501,11 @@
     drawState.end = minutesFromPointer(drawState.lane, event);
     const start = Math.min(drawState.start, drawState.end);
     const end = Math.max(drawState.start, drawState.end);
-    const safeEnd = end === start ? Math.min(start + 60, DAY_END_HOUR * 60) : end;
+    const safeEnd = end === start ? Math.min(start + SNAP_MINUTES, DAY_END_HOUR * 60) : end;
     const top = ((start - DAY_START_HOUR * 60) / ((DAY_END_HOUR - DAY_START_HOUR) * 60)) * 100;
     const height = ((safeEnd - start) / ((DAY_END_HOUR - DAY_START_HOUR) * 60)) * 100;
     drawState.preview.style.top = `${top}%`;
-    drawState.preview.style.height = `${Math.max(3.2, height)}%`;
+    drawState.preview.style.height = `${height}%`;
   }
 
   function finishDrawLine(event) {
@@ -1915,7 +2522,7 @@
     let start = Math.min(drawState.start, drawState.end);
     let end = Math.max(drawState.start, drawState.end);
     if (start >= DAY_END_HOUR * 60) start = DAY_END_HOUR * 60 - SNAP_MINUTES;
-    if (end === start) end = Math.min(start + 60, DAY_END_HOUR * 60);
+    if (end === start) end = Math.min(start + SNAP_MINUTES, DAY_END_HOUR * 60);
     if (end - start < SNAP_MINUTES) end = Math.min(start + SNAP_MINUTES, DAY_END_HOUR * 60);
     const startTime = timeFromMinutes(start);
     const endTime = timeFromMinutes(end);
@@ -1924,59 +2531,102 @@
     drawState.preview.remove();
     drawState = null;
 
-    if (type === "plan") {
-      const title = window.prompt(`${startTime}-${endTime} 계획 내용을 입력하세요.`, "새 계획");
-      if (!title) return;
-      setState((draft) => {
+    openSchedulePopup({
+      mode: type,
+      action: "create",
+      date,
+      start: startTime,
+      end: endTime,
+      title: "",
+      categoryId: "mainWork",
+      x: event.clientX,
+      y: event.clientY
+    });
+  }
+
+  function findBestPlanForActual(blocks, date, start, end) {
+    const actualStart = minutesFromTime(start);
+    const actualEnd = minutesFromTime(end);
+    let best = null;
+    let bestOverlap = 0;
+    blocks.forEach((block) => {
+      if (block.date !== date || block.actualOnly || block.cancelled) return;
+      const planStart = minutesFromTime(block.start);
+      const planEnd = minutesFromTime(block.end);
+      const overlap = Math.max(0, Math.min(actualEnd, planEnd) - Math.max(actualStart, planStart));
+      if (overlap > bestOverlap) {
+        best = block;
+        bestOverlap = overlap;
+      }
+    });
+    return bestOverlap > 0 ? best : null;
+  }
+
+  function copyDayPlan(sourceDate) {
+    const plans = state.blocks.filter((block) => {
+      return block.date === sourceDate && !block.actualOnly && !block.cancelled;
+    });
+    if (!plans.length) {
+      window.alert("복사할 Plan 일정이 없습니다.");
+      return;
+    }
+    const defaultDate = addDays(sourceDate, 1);
+    const targetDate = window.prompt("Plan을 복사할 날짜를 YYYY-MM-DD 형식으로 입력하세요.", defaultDate);
+    if (targetDate === null) return;
+    const nextDate = targetDate.trim();
+    if (!isValidISODate(nextDate)) {
+      window.alert("날짜 형식이 올바르지 않습니다. 예: 2026-05-01");
+      return;
+    }
+    setState((draft) => {
+      plans.forEach((block) => {
         draft.blocks.push({
+          ...block,
           id: uid("block"),
-          title: title.trim(),
-          date,
-          start: startTime,
-          end: endTime,
-          categoryId: "work",
-          goalId: "",
-          projectId: "",
+          date: nextDate,
           status: "planned",
           actualStart: "",
           actualEnd: "",
           actualText: "",
           actualDone: false,
           actualOnly: false,
+          actualCategoryId: block.categoryId,
           cancelled: false,
           cancelMemo: "",
           memoText: "",
           photos: []
         });
-        draft.currentDate = date;
       });
-      return;
-    }
+      draft.currentDate = nextDate;
+    });
+  }
 
-    const actualText = window.prompt(`${startTime}-${endTime} 실행 내용을 입력하세요.`, "실행 기록");
-    if (!actualText) return;
+  function clearActualFromBlock(block) {
+    block.actualStart = "";
+    block.actualEnd = "";
+    block.actualText = "";
+    block.actualDone = false;
+    block.actualCategoryId = block.categoryId;
+  }
+
+  function deleteSchedulePopupTarget() {
+    if (!schedulePopup || schedulePopup.action !== "edit") return;
+    const popup = { ...schedulePopup };
+    schedulePopup = null;
     setState((draft) => {
-      draft.blocks.push({
-        id: uid("block"),
-        title: actualText.trim(),
-        date,
-        start: startTime,
-        end: endTime,
-        categoryId: "work",
-        goalId: "",
-        projectId: "",
-        status: "actual",
-        actualStart: startTime,
-        actualEnd: endTime,
-        actualText: actualText.trim(),
-        actualDone: true,
-        actualOnly: true,
-        cancelled: false,
-        cancelMemo: "",
-        memoText: "",
-        photos: []
-      });
-      draft.currentDate = date;
+      const index = draft.blocks.findIndex((item) => item.id === popup.blockId);
+      if (index === -1) return;
+      const target = draft.blocks[index];
+      if (popup.mode === "actual") {
+        if (target.actualOnly) {
+          draft.blocks.splice(index, 1);
+        } else {
+          clearActualFromBlock(target);
+        }
+      } else {
+        draft.blocks.splice(index, 1);
+      }
+      draft.currentDate = popup.date || target.date || draft.currentDate;
     });
   }
 
@@ -1996,47 +2646,50 @@
     return clampDayMinutes(snapMinutes(minutes));
   }
 
-  function editPlanBlock(id) {
+  function editPlanBlock(id, event) {
     const block = state.blocks.find((item) => item.id === id);
     if (!block) return;
-    const title = window.prompt("계획 내용을 수정하세요.", block.title);
-    if (title === null) return;
-    const start = window.prompt("계획 시작 시간을 수정하세요. 예: 09:00", block.start);
-    if (start === null) return;
-    const end = window.prompt("계획 종료 시간을 수정하세요. 예: 10:30", block.end);
-    if (end === null) return;
-    setState((draft) => {
-      const target = draft.blocks.find((item) => item.id === id);
-      if (target) {
-        target.title = title.trim() || target.title;
-        target.start = normalizeTimeInput(start, target.start);
-        target.end = normalizeTimeInput(end, target.end);
-      }
+    openSchedulePopup({
+      mode: "plan",
+      action: "edit",
+      blockId: id,
+      date: block.date,
+      start: block.start,
+      end: block.end,
+      title: block.title,
+      categoryId: block.categoryId,
+      x: event?.clientX || 0,
+      y: event?.clientY || 0
     });
   }
 
-  function editActualBlock(id) {
+  function editActualBlock(id, event) {
     const block = state.blocks.find((item) => item.id === id);
     if (!block) return;
-    const text = window.prompt("실행 내용을 수정하세요.", block.actualText || block.title);
-    if (text === null) return;
-    const start = window.prompt("실행 시작 시간을 수정하세요. 예: 09:10", block.actualStart || block.start);
-    if (start === null) return;
-    const end = window.prompt("실행 종료 시간을 수정하세요. 예: 09:55", block.actualEnd || block.end);
-    if (end === null) return;
+    openSchedulePopup({
+      mode: "actual",
+      action: "edit",
+      blockId: id,
+      date: block.date,
+      start: block.actualStart || block.start,
+      end: block.actualEnd || block.end,
+      title: block.actualText || block.title,
+      categoryId: block.actualCategoryId || block.categoryId,
+      x: event?.clientX || 0,
+      y: event?.clientY || 0
+    });
+  }
+
+  function createActualFromPlan(id) {
     setState((draft) => {
-      const target = draft.blocks.find((item) => item.id === id);
-      if (target) {
-        target.actualText = text.trim() || target.actualText || target.title;
-        target.actualStart = normalizeTimeInput(start, target.actualStart || target.start);
-        target.actualEnd = normalizeTimeInput(end, target.actualEnd || target.end);
-        target.actualDone = true;
-        if (target.actualOnly) {
-          target.title = target.actualText;
-          target.start = target.actualStart;
-          target.end = target.actualEnd;
-        }
-      }
+      const block = draft.blocks.find((item) => item.id === id);
+      if (!block) return;
+      block.actualStart = block.start;
+      block.actualEnd = block.end;
+      block.actualText = block.actualText || block.title;
+      block.actualCategoryId = block.actualCategoryId || block.categoryId;
+      block.actualDone = true;
+      draft.currentDate = block.date || draft.currentDate;
     });
   }
 
@@ -2049,6 +2702,19 @@
     return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   }
 
+  function normalizeScheduleRange(startValue, endValue) {
+    const dayStart = DAY_START_HOUR * 60;
+    const dayEnd = DAY_END_HOUR * 60;
+    let start = snapMinutes(minutesFromTime(normalizeTimeInput(startValue, "09:00")));
+    let end = snapMinutes(minutesFromTime(normalizeTimeInput(endValue, "10:00")));
+    start = Math.max(dayStart, Math.min(dayEnd - SNAP_MINUTES, start));
+    end = Math.max(start + SNAP_MINUTES, Math.min(dayEnd, end));
+    return {
+      start: timeFromMinutes(start),
+      end: timeFromMinutes(end)
+    };
+  }
+
   function toCamel(key) {
     return key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   }
@@ -2059,15 +2725,101 @@
     const type = form.dataset.form;
     const data = Object.fromEntries(new FormData(form).entries());
 
+    if (type === "schedule-popup") {
+      if (!schedulePopup) return;
+      const popup = { ...schedulePopup };
+      const title = String(data.title || "").trim();
+      const categoryId = normalizeCategoryId(data.categoryId);
+      if (!title) return;
+      schedulePopup = null;
+      setState((draft) => {
+        if (popup.action === "edit") {
+          const target = draft.blocks.find((item) => item.id === popup.blockId);
+          if (!target) return;
+          if (popup.mode === "actual") {
+            target.actualText = title;
+            target.actualCategoryId = categoryId;
+            target.actualDone = true;
+            if (!target.actualStart) target.actualStart = popup.start || target.start;
+            if (!target.actualEnd) target.actualEnd = popup.end || target.end;
+            if (target.actualOnly) {
+              target.title = title;
+              target.categoryId = categoryId;
+            }
+          } else {
+            target.title = title;
+            target.categoryId = categoryId;
+            if (!blockHasActualLine(target) && !target.actualOnly) {
+              target.actualCategoryId = categoryId;
+            }
+          }
+          draft.currentDate = target.date || popup.date;
+          return;
+        }
+
+        if (popup.mode === "plan") {
+          draft.blocks.push({
+            id: uid("block"),
+            title,
+            date: popup.date,
+            start: popup.start,
+            end: popup.end,
+            categoryId,
+            actualCategoryId: categoryId,
+            goalId: "",
+            projectId: "",
+            status: "planned",
+            actualStart: "",
+            actualEnd: "",
+            actualText: "",
+            actualDone: false,
+            actualOnly: false,
+            cancelled: false,
+            cancelMemo: "",
+            memoText: "",
+            photos: []
+          });
+          draft.currentDate = popup.date;
+          return;
+        }
+
+        draft.blocks.push({
+          id: uid("block"),
+          title,
+          date: popup.date,
+          start: popup.start,
+          end: popup.end,
+          categoryId,
+          actualCategoryId: categoryId,
+          goalId: "",
+          projectId: "",
+          status: "actual",
+          actualStart: popup.start,
+          actualEnd: popup.end,
+          actualText: title,
+          actualDone: true,
+          actualOnly: true,
+          cancelled: false,
+          cancelMemo: "",
+          memoText: "",
+          photos: []
+        });
+        draft.currentDate = popup.date;
+      });
+      return;
+    }
+
     if (type === "schedule") {
+      const range = normalizeScheduleRange(data.start, data.end);
       setState((draft) => {
         draft.blocks.push({
           id: uid("block"),
           title: data.title.trim(),
           date: data.date,
-          start: data.start,
-          end: data.end,
-          categoryId: data.categoryId,
+          start: range.start,
+          end: range.end,
+          categoryId: normalizeCategoryId(data.categoryId),
+          actualCategoryId: normalizeCategoryId(data.categoryId),
           goalId: data.goalId,
           projectId: data.projectId,
           status: "planned",
@@ -2086,6 +2838,18 @@
       return;
     }
 
+    if (type === "daily-check") {
+      setState((draft) => {
+        const log = ensureDailyLogMutable(draft, form.dataset.checkDate || draft.currentDate);
+        log.checks.push({
+          title: data.title.trim(),
+          status: "open",
+          done: false
+        });
+      });
+      return;
+    }
+
     if (type === "task") {
       const project = projectById(data.projectId);
       setState((draft) => {
@@ -2095,7 +2859,10 @@
           projectId: data.projectId || "",
           goalId: project?.goalId || "",
           dueDate: data.dueDate || draft.currentDate,
+          weekStart: data.weekStart || startOfWeek(data.dueDate || draft.currentDate),
+          scope: data.scope || "work",
           priority: "normal",
+          status: "open",
           done: false
         });
       });
@@ -2177,7 +2944,9 @@
     if (type === "weekly-review") {
       const weekStart = form.dataset.weekStart;
       setState((draft) => {
+        const existing = draft.reviews.weekly[weekStart] || {};
         draft.reviews.weekly[weekStart] = {
+          ...existing,
           wins: data.wins.trim(),
           lessons: data.lessons.trim(),
           next: data.next.trim()
@@ -2190,17 +2959,22 @@
     const existing = state.reviews.daily[date];
     return {
       top: Array.isArray(existing?.top) ? existing.top : ["", "", ""],
-      text: existing?.text || ""
+      text: existing?.text || "",
+      checks: Array.isArray(existing?.checks) ? existing.checks.map(normalizeDailyCheck) : []
     };
   }
 
   function ensureDailyLogMutable(draft, date) {
     if (!draft.reviews.daily[date]) {
-      draft.reviews.daily[date] = { top: ["", "", ""], text: "" };
+      draft.reviews.daily[date] = { top: ["", "", ""], text: "", checks: [] };
     }
     if (!Array.isArray(draft.reviews.daily[date].top)) {
       draft.reviews.daily[date].top = ["", "", ""];
     }
+    if (!Array.isArray(draft.reviews.daily[date].checks)) {
+      draft.reviews.daily[date].checks = [];
+    }
+    draft.reviews.daily[date].checks = draft.reviews.daily[date].checks.map(normalizeDailyCheck);
     return draft.reviews.daily[date];
   }
 

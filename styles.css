@@ -1,22 +1,32 @@
 :root {
-  color-scheme: light;
-  --bg: #f5f7f8;
-  --panel: #ffffff;
-  --panel-soft: #f9faf8;
-  --ink: #202124;
-  --muted: #6b7078;
-  --quiet: #8a9098;
-  --line: #dfe4e7;
-  --line-strong: #c9d1d6;
-  --teal: #0f766e;
-  --green: #2f8f6b;
-  --amber: #b7791f;
-  --coral: #c95537;
-  --violet: #5b57c8;
-  --red: #b63b35;
-  --highlight: #efff73;
-  --highlight-soft: #fbffd7;
-  --shadow: 0 12px 34px rgba(32, 33, 36, 0.08);
+  color-scheme: dark;
+  --bg: #002b36;
+  --panel: #073642;
+  --panel-soft: #0b3a46;
+  --ink: #eee8d5;
+  --muted: #93a1a1;
+  --quiet: #839496;
+  --line: rgba(147, 161, 161, 0.22);
+  --line-strong: rgba(147, 161, 161, 0.42);
+  --teal: #2aa198;
+  --green: #859900;
+  --amber: #b58900;
+  --coral: #cb4b16;
+  --violet: #6c71c4;
+  --red: #dc322f;
+  --blue: #268bd2;
+  --magenta: #d33682;
+  --base03: #002b36;
+  --base02: #073642;
+  --base01: #586e75;
+  --base00: #657b83;
+  --base0: #839496;
+  --base1: #93a1a1;
+  --base2: #eee8d5;
+  --base3: #fdf6e3;
+  --highlight: #b58900;
+  --highlight-soft: rgba(181, 137, 0, 0.22);
+  --shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
   --radius: 8px;
   --font: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
 }
@@ -47,17 +57,18 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .sidebar {
   position: sticky;
   top: 0;
+  z-index: 35;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 22px 18px;
+  gap: 16px;
+  padding: 20px 16px;
   background: #ffffff;
   border-right: 1px solid var(--line);
 }
@@ -191,7 +202,7 @@ button {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -220,6 +231,35 @@ button {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.dont-forget-field {
+  flex: 1 1 320px;
+  max-width: 460px;
+  min-width: 220px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.dont-forget-field span {
+  color: var(--base1);
+  font-size: 18px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.dont-forget-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--base03);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .date-chip {
@@ -558,6 +598,66 @@ button {
   text-decoration: line-through;
 }
 
+.status-select {
+  width: auto;
+  min-width: 96px;
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--base03);
+  color: var(--base1);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.status-select.is-done {
+  border-color: rgba(42, 161, 152, 0.65);
+  color: var(--teal);
+}
+
+.status-select.is-progress {
+  border-color: rgba(242, 201, 76, 0.7);
+  color: #f2c94c;
+}
+
+.status-select.is-cancelled {
+  border-color: rgba(220, 50, 47, 0.62);
+  color: #ff8d8d;
+}
+
+.status-select.is-postponed {
+  border-color: rgba(77, 171, 247, 0.65);
+  color: #8fc7ff;
+}
+
+.status-select.is-delegated {
+  border-color: rgba(255, 146, 43, 0.7);
+  color: #ffb25f;
+}
+
+.list-row.is-status-progress {
+  border-color: rgba(242, 201, 76, 0.34);
+}
+
+.list-row.is-status-cancelled {
+  opacity: 0.7;
+}
+
+.list-row.is-status-cancelled .row-title,
+.list-row.is-status-cancelled .task-title-input,
+.list-row.is-status-cancelled .daily-check-title {
+  text-decoration: line-through;
+}
+
+.list-row.is-status-postponed {
+  border-color: rgba(77, 171, 247, 0.34);
+}
+
+.list-row.is-status-delegated {
+  border-color: rgba(255, 146, 43, 0.36);
+}
+
 .project-block {
   display: grid;
   gap: 0;
@@ -651,6 +751,28 @@ button {
   line-height: 1.5;
 }
 
+.mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.mode-toggle button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.mode-toggle button.is-active {
+  border-color: var(--teal);
+  background: rgba(42, 161, 152, 0.16);
+  color: var(--teal);
+}
+
 .week-planner-scroll {
   overflow-x: auto;
   padding-bottom: 6px;
@@ -685,16 +807,46 @@ button {
   border-bottom: 1px solid var(--line);
   background: var(--panel-soft);
   color: inherit;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+  text-align: left;
+}
+
+.day-head-select {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
   text-align: left;
 }
 
 .day-name {
+  font-size: 26px;
   font-weight: 800;
+  line-height: 1.08;
 }
 
 .day-date {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.08;
+}
+
+.day-copy-plan {
+  align-self: center;
+  min-height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 9px;
+  background: rgba(42, 161, 152, 0.14);
+  color: var(--teal);
+  font-size: 15px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .day-checks {
@@ -776,16 +928,16 @@ button {
 
 .day-draw-board {
   --hour-row: 54px;
-  height: calc(var(--hour-row) * 18);
+  height: calc(var(--hour-row) * 19);
   min-height: 0;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   border-top: 1px solid var(--line);
 }
 
 .day-axis {
   display: grid;
-  grid-template-rows: repeat(18, var(--hour-row));
+  grid-template-rows: repeat(19, var(--hour-row));
   background: var(--panel-soft);
   border-right: 1px solid var(--line);
 }
@@ -801,7 +953,7 @@ button {
 .draw-lane {
   position: relative;
   min-width: 0;
-  height: calc(var(--hour-row) * 18);
+  height: calc(var(--hour-row) * 19);
   min-height: 0;
   border-right: 1px solid var(--line);
   background:
@@ -854,6 +1006,62 @@ button {
   border-left-width: 5px;
   background: #ffffff;
   box-shadow: 0 5px 15px rgba(32, 33, 36, 0.08);
+}
+
+.calendar-segment {
+  right: auto;
+  min-width: 44px;
+  cursor: grab;
+}
+
+.calendar-segment.actual-segment {
+  z-index: 4;
+}
+
+.calendar-segment:active {
+  cursor: grabbing;
+}
+
+.segment-resize-handle {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  z-index: 6;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(238, 232, 213, 0.28);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.segment-resize-handle.top {
+  top: 3px;
+  cursor: ns-resize;
+}
+
+.segment-resize-handle.bottom {
+  bottom: 3px;
+  cursor: ns-resize;
+}
+
+.calendar-segment:hover .segment-resize-handle {
+  opacity: 1;
+}
+
+.calendar-draw-lane.is-actual-mode {
+  box-shadow: inset 0 0 0 1px rgba(181, 137, 0, 0.36);
+}
+
+.calendar-draw-lane.is-plan-mode {
+  box-shadow: inset 0 0 0 1px rgba(42, 161, 152, 0.18);
+}
+
+.calendar-draw-lane.is-actual-mode .draw-lane-title {
+  color: var(--amber);
+}
+
+.calendar-draw-lane.is-plan-mode .draw-lane-title {
+  color: var(--teal);
 }
 
 .time-segment:hover {
@@ -1863,6 +2071,12 @@ button {
     justify-content: flex-start;
   }
 
+  .dont-forget-field {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: 1fr;
+  }
+
   .workspace {
     padding: 16px;
   }
@@ -1905,4 +2119,4069 @@ button {
   .month-scroll {
     overflow-x: auto;
   }
+}
+
+/* Solarized Dark theme surface overrides */
+body,
+.app-shell {
+  background: var(--bg);
+}
+
+.sidebar,
+.topbar,
+.panel,
+.mini-stat,
+.nav-icon,
+.date-chip,
+.text-btn,
+.icon-btn,
+.field input,
+.field textarea,
+.field select,
+.top-three input,
+.timeline-row,
+.day-column,
+.month-cell,
+.guide-card,
+.guide-sample,
+.project-block,
+.list-row,
+.paper-day,
+.paper-date-box,
+.photo-strip figure {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.topbar {
+  background: var(--bg);
+}
+
+.sidebar,
+.topbar,
+.panel,
+.mini-stat,
+.nav-icon,
+.date-chip,
+.text-btn,
+.icon-btn,
+.field input,
+.field textarea,
+.field select,
+.top-three input,
+.list-row,
+.project-block,
+.day-column,
+.month-grid,
+.month-cell,
+.month-head,
+.paper-page,
+.paper-box,
+.paper-day,
+.paper-day-head,
+.paper-event,
+.paper-todo,
+.paper-time-row,
+.paper-hour,
+.paper-plan-cell,
+.paper-actual-cell,
+.today-schedule-card,
+.today-note-card,
+.block-memo,
+.guide-card,
+.guide-sample,
+.guide-sample-row {
+  border-color: var(--line);
+}
+
+.binder-mark {
+  background:
+    linear-gradient(90deg, rgba(42, 161, 152, 0.2), rgba(0, 43, 54, 0) 45%),
+    var(--panel);
+}
+
+.binder-mark::before,
+.binder-mark::after {
+  background: var(--bg);
+}
+
+.nav-btn:hover,
+.nav-btn.is-active,
+.month-head,
+.timeline-hour,
+.timeline-lane,
+.day-head,
+.day-axis,
+.day-axis span,
+.day-time,
+.day-checks,
+.draw-lane-title,
+.paper-day-head,
+.paper-hour,
+.paper-box,
+.guide-card strong,
+.empty,
+.photo-add,
+.today-empty-actual {
+  background: var(--panel-soft);
+}
+
+.nav-btn.is-active {
+  border-color: rgba(42, 161, 152, 0.38);
+  color: var(--teal);
+}
+
+.text-btn.primary,
+.icon-btn.primary,
+.day-task-form button {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--base03);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea,
+select,
+.task-title-input,
+.day-task-form input,
+.actual-input,
+.block-memo,
+.paper-objectives input[type="text"],
+.paper-objectives input:not([type]),
+.habit-name {
+  background: var(--base03);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--base01);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--teal);
+}
+
+input[type="checkbox"] {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+}
+
+select {
+  color-scheme: dark;
+}
+
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+}
+
+.sheet::before {
+  background:
+    radial-gradient(circle at 8px 38px, var(--base01) 0 3px, transparent 4px),
+    radial-gradient(circle at 8px 108px, var(--base01) 0 3px, transparent 4px),
+    radial-gradient(circle at 8px 178px, var(--base01) 0 3px, transparent 4px);
+}
+
+.draw-lane {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--panel) 0,
+      var(--panel) calc(var(--hour-row) - 1px),
+      var(--line) calc(var(--hour-row) - 1px),
+      var(--line) var(--hour-row)
+    );
+}
+
+.plan-line,
+.time-segment,
+.week-card,
+.paper-plan,
+.paper-event strong {
+  background: var(--base03);
+  color: var(--ink);
+}
+
+.plan-line.is-executed,
+.actual-input.is-executed,
+.actual-segment,
+.today-actual-chip,
+.paper-actual {
+  background: var(--highlight-soft);
+  border-color: var(--amber);
+  color: var(--base2);
+}
+
+.actual-input.is-executed,
+.paper-actual {
+  font-weight: 800;
+}
+
+.highlight-note {
+  background: rgba(181, 137, 0, 0.16);
+  border-color: rgba(181, 137, 0, 0.56);
+  color: var(--base2);
+}
+
+.plan-segment.is-cancelled,
+.today-plan-chip.is-cancelled,
+.paper-plan.is-cancelled,
+.cancel-memo,
+.today-cancel-note {
+  background: rgba(220, 50, 47, 0.13);
+  border-color: rgba(220, 50, 47, 0.48);
+  color: var(--red);
+}
+
+.draw-preview {
+  background: rgba(42, 161, 152, 0.18);
+  border-color: var(--teal);
+}
+
+.draw-preview.actual-preview {
+  background: rgba(181, 137, 0, 0.22);
+  border-color: var(--amber);
+}
+
+.month-cell.is-muted {
+  background: var(--base03);
+  color: var(--base01);
+}
+
+.month-cell.is-selected,
+.day-column.is-current,
+.paper-day.is-current {
+  border-color: rgba(42, 161, 152, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(42, 161, 152, 0.35);
+}
+
+.progress,
+.stat-bar {
+  background: rgba(88, 110, 117, 0.34);
+}
+
+.tag {
+  background: rgba(38, 139, 210, 0.12);
+  border-color: rgba(38, 139, 210, 0.3);
+  color: var(--base1);
+}
+
+.today-plan-chip,
+.today-actual-chip,
+.today-cancel-note,
+.today-note-card,
+.paper-page {
+  background: var(--panel);
+}
+
+.today-note-card.has-note {
+  background: rgba(42, 161, 152, 0.08);
+  border-color: rgba(42, 161, 152, 0.36);
+}
+
+.today-connector span {
+  background: linear-gradient(90deg, var(--base01), var(--teal));
+}
+
+.paper-page {
+  border-color: var(--line-strong);
+}
+
+.paper-header {
+  border-bottom-color: var(--base01);
+}
+
+.paper-top,
+.paper-body {
+  border-color: var(--line-strong);
+}
+
+.paper-box textarea {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) 25px,
+      rgba(147, 161, 161, 0.18) 26px
+    );
+}
+
+.paper-plan {
+  border-left-color: var(--teal);
+}
+
+.photo-strip figure button {
+  background: rgba(0, 43, 54, 0.82);
+  color: var(--base2);
+}
+
+/* Large reading mode */
+body {
+  font-size: 32px;
+}
+
+.brand-title { font-size: 34px; }
+.brand-subtitle,
+.nav-btn,
+.mini-stat span,
+.topbar p,
+.panel-subtitle,
+.field label,
+.row-meta,
+.tag,
+.save-hint,
+.day-date,
+.day-empty,
+.note-label,
+.paper-date-box span {
+  font-size: 24px;
+}
+
+.mini-stat strong,
+.topbar h1 {
+  font-size: 44px;
+}
+
+.panel-title,
+.section-label,
+.mode-toggle button,
+.paper-day-head strong {
+  font-size: 32px;
+}
+
+.field input,
+.field textarea,
+.field select,
+.top-three input,
+.day-task-form input,
+.task-title-input,
+.actual-input,
+.block-memo,
+.habit-name,
+.paper-objectives input,
+.text-btn,
+.icon-btn,
+.date-chip {
+  font-size: 24px;
+}
+
+.text-btn,
+.icon-btn,
+.date-chip {
+  min-height: 60px;
+}
+
+.icon-btn {
+  width: 60px;
+}
+
+.nav-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.field input,
+.field select {
+  min-height: 64px;
+}
+
+.day-task-form input,
+.day-task-form button {
+  height: 54px;
+}
+
+.day-task-form {
+  grid-template-columns: minmax(0, 1fr) 54px;
+}
+
+.timeline-hour,
+.lane-title,
+.line-placeholder,
+.plan-line,
+.actual-input,
+.day-axis span,
+.draw-lane-title,
+.segment-head strong,
+.segment-head span,
+.segment-cancel,
+.cancel-memo,
+.month-number,
+.month-head,
+.stat-label,
+.stat-value,
+.today-card-head,
+.today-plan-chip span,
+.today-actual-chip span,
+.today-plan-chip strong,
+.today-actual-chip strong,
+.today-plan-chip em,
+.today-actual-chip em,
+.today-empty-actual,
+.photo-add,
+.guide-card strong,
+.guide-card p,
+.paper-kicker,
+.paper-box h3,
+.habit-head,
+.paper-day-head span,
+.paper-event > span,
+.paper-todo > span,
+.paper-event strong,
+.paper-todo em,
+.paper-hour,
+.paper-plan,
+.paper-actual {
+  font-size: 22px;
+}
+
+.guide-card h3,
+.paper-date-box strong {
+  font-size: 30px;
+}
+
+.paper-header h2 {
+  font-size: 64px;
+}
+
+.day-draw-board {
+  --hour-row: 86px;
+}
+
+.week-planner {
+  grid-template-columns: repeat(7, minmax(380px, 1fr));
+}
+
+.week-planner-scroll {
+  overflow-x: auto;
+}
+
+.time-segment {
+  min-height: 58px;
+}
+
+.today-linked-record {
+  grid-template-columns: minmax(360px, 0.9fr) 56px minmax(420px, 1.1fr);
+}
+
+.block-memo {
+  min-height: 120px;
+}
+
+.photo-strip figure {
+  width: 96px;
+  height: 96px;
+}
+
+.app-shell {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.sidebar {
+  gap: 20px;
+  padding: 24px 18px;
+}
+
+.brand {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 96px;
+}
+
+.sidebar .brand-title {
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.sidebar .brand-subtitle {
+  font-size: 20px;
+  line-height: 1.28;
+}
+
+.binder-mark {
+  width: 42px;
+  height: 54px;
+  border-left-width: 9px;
+}
+
+.binder-mark::before {
+  top: 13px;
+}
+
+.binder-mark::after {
+  bottom: 13px;
+}
+
+.nav-list {
+  gap: 12px;
+}
+
+.nav-btn {
+  grid-template-columns: 42px minmax(0, 1fr);
+  min-height: 58px;
+  padding: 10px 12px;
+  font-size: 22px;
+}
+
+.sidebar-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 43, 54, 0.22);
+}
+
+.sidebar-mode button {
+  min-height: 56px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  color: var(--base1);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.sidebar-mode button.is-active {
+  border-color: var(--teal);
+  background: rgba(42, 161, 152, 0.2);
+  color: var(--teal);
+}
+
+.sidebar-mode button[data-week-mode="actual"].is-active {
+  border-color: rgba(220, 50, 47, 0.58);
+  background: rgba(220, 50, 47, 0.16);
+  color: #ff8d8d;
+}
+
+.calendar-segment {
+  border-color: color-mix(in srgb, var(--segment-color, var(--teal)) 62%, var(--line));
+  border-left-color: var(--segment-color, var(--teal));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--segment-color, var(--panel)) 30%, transparent), transparent 72%),
+    color-mix(in srgb, var(--segment-color, var(--panel)) 18%, var(--panel));
+}
+
+.calendar-segment.actual-segment {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--segment-color, var(--amber)) 36%, transparent), transparent 70%),
+    color-mix(in srgb, var(--segment-color, var(--panel)) 26%, var(--panel));
+  border-color: color-mix(in srgb, var(--segment-color, var(--amber)) 70%, var(--line));
+  border-left-color: var(--segment-color, var(--amber));
+}
+
+.calendar-segment.is-readonly {
+  pointer-events: auto;
+  cursor: default;
+  opacity: 0.72;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-segment.is-readonly {
+  opacity: 0.48;
+}
+
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 43, 54, 0.14);
+}
+
+.schedule-popover {
+  position: fixed;
+  z-index: 61;
+  width: min(560px, calc(100vw - 32px));
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--teal) 42%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--base02) 92%, var(--base03));
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+.popover-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 12px;
+  align-items: start;
+}
+
+.popover-head strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 28px;
+}
+
+.popover-head span {
+  display: block;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.popover-head button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  color: var(--base1);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.popover-title-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.popover-title-field textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 14px 15px;
+  background: var(--base03);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 24px;
+  line-height: 1.35;
+  outline: 0;
+}
+
+.popover-title-field textarea:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.16);
+}
+
+.popover-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.popover-categories label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 43, 54, 0.32);
+  color: var(--base1);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.popover-categories input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--teal);
+}
+
+.popover-categories label:has(input:checked) {
+  border-color: var(--teal);
+  background: rgba(42, 161, 152, 0.14);
+  color: var(--base2);
+}
+
+.popover-categories.is-locked {
+  opacity: 0.72;
+}
+
+.popover-categories.is-locked label {
+  cursor: not-allowed;
+}
+
+.popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.week-task-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.week-task-bucket {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.week-task-bucket h4 {
+  margin: 0;
+  color: var(--base1);
+  font-size: 22px;
+}
+
+.week-task-bucket .quick-line {
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 6px;
+}
+
+.week-task-bucket .field input,
+.week-task-bucket .quick-line input {
+  min-height: 42px;
+  padding: 7px 9px;
+  font-size: 20px;
+}
+
+.week-task-bucket .quick-line button {
+  min-height: 42px;
+  padding: 0 10px;
+  font-size: 20px;
+}
+
+.week-task-bucket .week-check-list {
+  display: grid;
+  gap: 6px;
+}
+
+.week-task-bucket .list-row {
+  grid-template-columns: auto minmax(0, 1fr) 42px;
+  gap: 7px;
+  padding: 7px;
+}
+
+.week-task-bucket .row-title,
+.week-task-bucket .task-title-input,
+.week-task-bucket .row-meta,
+.week-task-bucket .icon-btn {
+  font-size: 18px;
+}
+
+.week-task-bucket .status-select {
+  min-width: 96px;
+  min-height: 42px;
+  font-size: 16px;
+}
+
+.week-task-bucket .icon-btn {
+  width: 42px;
+  min-height: 42px;
+}
+
+.small-empty {
+  color: var(--base01);
+  font-size: 18px;
+}
+
+.daily-check-title {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: transparent;
+  color: inherit;
+}
+
+.daily-check-title:focus {
+  border-color: var(--line-strong);
+  background: var(--base03);
+  outline: 0;
+}
+
+.list-row.is-done .task-title-input,
+.list-row.is-done .daily-check-title {
+  text-decoration: line-through;
+}
+
+@media (max-width: 760px) {
+  .popover-categories,
+  .week-task-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-popover {
+    left: 16px !important;
+    right: 16px;
+    width: auto;
+  }
+}
+
+.day-head-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.day-mode-chip {
+  flex: 0 0 auto;
+  min-width: 62px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgba(42, 161, 152, 0.16);
+  color: var(--teal);
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.day-mode-chip.is-do {
+  background: rgba(220, 50, 47, 0.14);
+  border-color: rgba(220, 50, 47, 0.48);
+  color: #ff6b6b;
+}
+
+.day-checks .daily-check-form,
+.week-task-bucket .week-task-form {
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: end;
+  gap: 8px;
+}
+
+.day-checks .daily-check-form .field,
+.week-task-bucket .week-task-form .field {
+  min-width: 0;
+}
+
+.day-checks .daily-check-form label,
+.week-task-bucket .week-task-form label {
+  display: none;
+}
+
+.day-checks .daily-check-form input,
+.week-task-bucket .week-task-form input {
+  min-width: 0;
+  width: 100%;
+  min-height: 52px;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.day-checks .daily-check-form input,
+.daily-check-title,
+.day-empty {
+  font-size: 18px;
+}
+
+.day-checks .daily-check-add,
+.week-task-bucket .week-task-add {
+  width: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.day-checks .list-row {
+  grid-template-columns: auto minmax(0, 1fr) 44px;
+  gap: 7px;
+  padding: 7px;
+}
+
+.day-checks .status-select {
+  min-width: 96px;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.day-checks .list-row .icon-btn {
+  width: 44px;
+  min-height: 44px;
+  font-size: 20px;
+}
+
+.calendar-segment {
+  border-color: color-mix(in srgb, var(--segment-color, var(--teal)) 76%, var(--line));
+  color: #fffdf0;
+  container-type: inline-size;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--segment-color, var(--panel)) 46%, transparent), transparent 74%),
+    color-mix(in srgb, var(--segment-color, var(--panel)) 34%, var(--panel));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.62);
+}
+
+.calendar-segment.actual-segment {
+  z-index: 8;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--segment-color, var(--amber)) 58%, transparent), transparent 74%),
+    color-mix(in srgb, var(--segment-color, var(--panel)) 48%, var(--panel));
+  border-color: color-mix(in srgb, var(--segment-color, var(--amber)) 82%, var(--line));
+}
+
+.calendar-segment .segment-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fffdf0;
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.calendar-segment .segment-title {
+  display: -webkit-box;
+  overflow-wrap: anywhere;
+  line-height: 1.08;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.calendar-segment .segment-head {
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+  line-height: 1.18;
+}
+
+.calendar-segment .segment-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 253, 240, 0.92);
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.calendar-segment.is-readonly {
+  pointer-events: auto;
+}
+
+.calendar-segment.is-do-source {
+  cursor: copy;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-segment.is-do-source {
+  opacity: 0.96;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-segment.is-do-source:hover {
+  opacity: 0.92;
+  outline: 2px solid rgba(255, 107, 107, 0.5);
+  outline-offset: -2px;
+}
+
+.plan-summary-segment {
+  z-index: 5;
+  min-height: 42px;
+  padding: 5px 6px;
+  opacity: 0.72;
+}
+
+.plan-summary-segment .segment-resize-handle {
+  display: none;
+}
+
+.plan-summary-segment .segment-head {
+  gap: 0;
+}
+
+.plan-summary-segment .segment-head strong {
+  color: #fffdf0;
+  font-size: 18px;
+}
+
+.plan-summary-segment .segment-head span {
+  font-size: 18px;
+}
+
+.actual-segment.is-primary-actual {
+  z-index: 10;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.calendar-segment.is-linked-pair {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 253, 240, 0.34),
+    0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.plan-summary-segment::after {
+  display: none;
+}
+
+.text-btn.danger {
+  border-color: rgba(220, 50, 47, 0.64);
+  background: rgba(220, 50, 47, 0.16);
+  color: #ff8d8d;
+}
+
+.draw-lane-title {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .day-checks .daily-check-form,
+  .week-task-bucket .week-task-form {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+
+  .day-checks .daily-check-add,
+  .week-task-bucket .week-task-add {
+    width: 48px;
+    min-width: 48px;
+  }
+}
+
+@container (max-width: 138px) {
+  .calendar-segment .segment-head {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .calendar-segment .segment-head strong {
+    flex: 1 1 auto;
+    font-size: 17px;
+  }
+
+  .calendar-segment .segment-head span {
+    flex: 0 1 auto;
+    font-size: 14px;
+  }
+}
+
+@container (max-width: 82px) {
+  .calendar-segment .segment-head {
+    gap: 3px;
+  }
+
+  .calendar-segment .segment-head strong {
+    font-size: 13px;
+  }
+
+  .calendar-segment .segment-head span {
+    font-size: 11px;
+  }
+}
+
+.highlight-note,
+.guide-card p,
+.guide-card strong,
+.save-hint {
+  font-size: 26px;
+  line-height: 1.55;
+}
+
+.panel-subtitle {
+  font-size: 26px;
+  line-height: 1.42;
+}
+
+.plan-summary-segment {
+  opacity: 0.86;
+}
+
+.plan-summary-segment .plan-time-stack {
+  height: 100%;
+  display: grid;
+  align-content: space-between;
+  gap: 0;
+}
+
+.plan-summary-segment .plan-time-stack strong,
+.plan-summary-segment .plan-time-stack span {
+  display: block;
+  color: #fffdf0;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+.actual-segment .segment-head span {
+  font-size: 20px;
+}
+
+.today-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.72fr);
+}
+
+.today-linked-list {
+  gap: 12px;
+}
+
+.today-schedule-select {
+  width: 100%;
+  color: var(--ink);
+  text-align: left;
+}
+
+.today-schedule-select.is-selected {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 1px rgba(42, 161, 152, 0.44);
+}
+
+.today-schedule-select.has-note::after {
+  content: "메모";
+  justify-self: start;
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(42, 161, 152, 0.16);
+  color: var(--teal);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.today-schedule-title {
+  overflow: hidden;
+  font-size: 26px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.today-schedule-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-detail-panel .panel-body {
+  display: grid;
+  gap: 12px;
+}
+
+.today-detail-summary {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left-width: 6px;
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.today-detail-summary strong {
+  font-size: 28px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.today-detail-summary span {
+  color: var(--muted);
+  font-size: 21px;
+}
+
+.today-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-strip figure.file-attachment {
+  width: auto;
+  min-width: 132px;
+  padding: 9px 34px 9px 10px;
+  display: grid;
+  place-items: center start;
+}
+
+.photo-strip figure.file-attachment a {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.month-scroll {
+  display: grid;
+  gap: 12px;
+}
+
+.month-grid {
+  grid-auto-rows: minmax(132px, 1fr);
+}
+
+.month-cell {
+  aspect-ratio: 1 / 0.82;
+  min-height: 132px;
+}
+
+.month-week-summaries {
+  display: grid;
+  gap: 8px;
+}
+
+.month-week-summary {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.month-week-summary strong {
+  color: var(--base2);
+  font-size: 20px;
+}
+
+.month-week-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.month-week-summary span {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--summary-color) 72%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--summary-color) 18%, var(--base03));
+  color: var(--base2);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.month-week-summary em {
+  color: var(--muted);
+  font-size: 18px;
+  font-style: normal;
+}
+
+.month-checks {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.month-checks span,
+.month-checks em {
+  overflow: hidden;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: rgba(42, 161, 152, 0.1);
+  color: var(--base1);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-checks span.is-done {
+  opacity: 0.56;
+  text-decoration: line-through;
+}
+
+.month-checks span.is-status-progress {
+  background: rgba(242, 201, 76, 0.14);
+}
+
+.month-checks span.is-status-cancelled {
+  opacity: 0.64;
+  text-decoration: line-through;
+}
+
+.month-checks span.is-status-postponed {
+  background: rgba(77, 171, 247, 0.13);
+}
+
+.month-checks span.is-status-delegated {
+  background: rgba(255, 146, 43, 0.14);
+}
+
+.month-check-list {
+  margin-top: 12px;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-summary-segment {
+  display: grid;
+  align-content: stretch;
+  min-width: 58px;
+  padding: 7px 5px;
+  opacity: 0.9;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-summary-segment .plan-time-stack {
+  min-height: 100%;
+  height: 100%;
+  align-content: space-between;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-summary-segment .plan-time-stack strong,
+.calendar-draw-lane.is-actual-mode .plan-summary-segment .plan-time-stack span {
+  color: #fffdf0;
+  overflow: visible;
+  font-size: 16px;
+  font-weight: 950;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+}
+
+.calendar-draw-lane.is-actual-mode .actual-segment .segment-head strong,
+.calendar-draw-lane.is-actual-mode .actual-segment .segment-head span {
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.compact-schedule-sample {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 0;
+  padding: 10px;
+  background: var(--base03);
+}
+
+.sample-plan-rail,
+.sample-do-card {
+  min-height: 112px;
+  border: 1px solid var(--line);
+}
+
+.sample-plan-rail {
+  display: grid;
+  align-content: space-between;
+  padding: 10px 8px;
+  border-radius: 8px 0 0 8px;
+  background: rgba(42, 161, 152, 0.22);
+  color: #fffdf0;
+  font-size: 18px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.sample-plan-rail.blue {
+  background: rgba(38, 139, 210, 0.22);
+}
+
+.sample-do-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  margin-left: -8px;
+  padding: 13px 16px;
+  border-color: rgba(42, 161, 152, 0.72);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(46, 194, 126, 0.38), transparent 72%),
+    rgba(7, 54, 66, 0.96);
+  color: #fffdf0;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+.sample-do-card.blue {
+  border-color: rgba(38, 139, 210, 0.72);
+  background:
+    linear-gradient(135deg, rgba(38, 139, 210, 0.48), transparent 72%),
+    rgba(7, 54, 66, 0.96);
+}
+
+.sample-do-card strong,
+.sample-do-card span {
+  font-size: 24px;
+  font-weight: 950;
+}
+
+@container (max-width: 138px) {
+  .calendar-draw-lane.is-actual-mode .actual-segment .segment-head strong,
+  .calendar-draw-lane.is-actual-mode .actual-segment .segment-head span {
+    font-size: 17px;
+  }
+}
+
+@container (max-width: 82px) {
+  .calendar-draw-lane.is-actual-mode .actual-segment .segment-head strong,
+  .calendar-draw-lane.is-actual-mode .actual-segment .segment-head span {
+    font-size: 13px;
+  }
+}
+
+.time-summary-segment {
+  min-width: 64px;
+  padding: 7px 5px;
+  opacity: 0.9;
+}
+
+.time-summary-segment .segment-resize-handle {
+  display: none;
+}
+
+.time-summary-segment .plan-time-stack {
+  height: 100%;
+  min-height: 100%;
+  display: grid;
+  align-content: space-between;
+  gap: 0;
+}
+
+.time-summary-segment .plan-time-stack strong,
+.time-summary-segment .plan-time-stack span {
+  display: block;
+  overflow: visible;
+  color: #fffdf0;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.74);
+}
+
+.actual-summary-segment {
+  z-index: 6;
+}
+
+.calendar-draw-lane.is-plan-mode .actual-summary-segment {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--segment-color, var(--blue)) 48%, transparent), transparent 74%),
+    color-mix(in srgb, var(--segment-color, var(--panel)) 36%, var(--panel));
+  border-color: color-mix(in srgb, var(--segment-color, var(--blue)) 82%, var(--line));
+}
+
+.day-name,
+.day-date {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.calendar-segment.time-summary-segment,
+.calendar-segment.plan-summary-segment {
+  min-width: 56px;
+  min-height: 0;
+  padding: 5px 4px;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-segment.plan-summary-segment.is-readonly {
+  min-width: 56px;
+  opacity: 0.9;
+}
+
+.calendar-segment.time-summary-segment {
+  display: grid;
+  align-content: stretch;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.calendar-segment.time-summary-segment .segment-head {
+  height: 100%;
+  min-height: 100%;
+}
+
+.time-summary-segment .plan-time-stack strong,
+.time-summary-segment .plan-time-stack span {
+  font-size: 14px;
+}
+
+.time-summary-segment.is-short .plan-time-stack strong,
+.time-summary-segment.is-short .plan-time-stack span {
+  font-size: 11px;
+}
+
+.time-summary-segment.is-tiny .plan-time-stack strong,
+.time-summary-segment.is-tiny .plan-time-stack span {
+  font-size: 9px;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-summary-segment.is-short .plan-time-stack strong,
+.calendar-draw-lane.is-actual-mode .plan-summary-segment.is-short .plan-time-stack span {
+  font-size: 11px;
+}
+
+.calendar-draw-lane.is-actual-mode .plan-summary-segment.is-tiny .plan-time-stack strong,
+.calendar-draw-lane.is-actual-mode .plan-summary-segment.is-tiny .plan-time-stack span {
+  font-size: 9px;
+}
+
+.calendar-segment.is-compact {
+  padding: 5px 6px;
+}
+
+.calendar-segment.is-compact .segment-title {
+  font-size: 16px;
+  -webkit-line-clamp: 2;
+}
+
+.calendar-segment.is-compact .segment-time {
+  font-size: 13px;
+}
+
+.calendar-segment.is-short {
+  padding: 3px 5px;
+}
+
+.calendar-segment.is-short .segment-head {
+  gap: 1px;
+  line-height: 1;
+}
+
+.calendar-segment.is-short .segment-title {
+  font-size: 12px;
+  line-height: 1;
+  -webkit-line-clamp: 1;
+}
+
+.calendar-segment.is-short .segment-time {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.calendar-segment.is-tiny {
+  padding: 2px 4px;
+  border-left-width: 3px;
+}
+
+.calendar-segment.is-tiny:not(.time-summary-segment) .segment-head {
+  display: flex;
+  min-height: 100%;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.calendar-segment.is-tiny .segment-title {
+  flex: 1 1 auto;
+  font-size: 10px;
+  line-height: 1;
+  -webkit-line-clamp: 1;
+}
+
+.calendar-segment.is-tiny .segment-time {
+  flex: 0 0 auto;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.today-layout {
+  grid-template-columns: minmax(380px, 430px) minmax(0, 1fr);
+}
+
+.today-record-panel .panel-body {
+  display: grid;
+  justify-items: stretch;
+}
+
+.today-record-panel .panel-header {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.today-record-panel .panel-header .text-btn {
+  width: max-content;
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+.today-day-column {
+  width: 100%;
+  min-width: 0;
+  max-width: 430px;
+}
+
+.today-day-column .day-draw-board {
+  --hour-row: 82px;
+}
+
+.today-readonly-lane {
+  cursor: default;
+}
+
+.today-calendar-segment.is-readonly {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.today-calendar-segment .segment-resize-handle {
+  display: none;
+}
+
+.today-calendar-segment.is-selected {
+  outline: 3px solid rgba(253, 246, 227, 0.7);
+  outline-offset: -3px;
+}
+
+.today-detail-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.today-detail-pair article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 116px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.today-detail-pair h3 {
+  margin: 0;
+  color: var(--teal);
+  font-size: 22px;
+}
+
+.today-detail-pair strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.today-detail-pair span,
+.today-detail-pair em {
+  color: var(--muted);
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.month-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.28fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.month-main-panel .panel-header {
+  padding-bottom: 8px;
+}
+
+.month-main-panel .panel-body {
+  padding-top: 8px;
+}
+
+.month-side-panels {
+  display: grid;
+  gap: 14px;
+}
+
+.month-scroll {
+  gap: 10px;
+  overflow: visible;
+}
+
+.month-week-summaries {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.month-week-summary {
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 7px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(7, 54, 66, 0.72);
+}
+
+.month-week-summary strong {
+  font-size: 15px;
+}
+
+.month-week-summary > div {
+  gap: 4px;
+}
+
+.month-week-summary span,
+.month-week-summary em {
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(90px, 1fr));
+  grid-auto-rows: minmax(92px, 1fr);
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.month-head {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #82a2df;
+  color: #fdf6e3;
+  font-size: 24px;
+  font-weight: 950;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+.month-head.is-sunday {
+  background: #ef7ab4;
+}
+
+.month-cell {
+  position: relative;
+  min-height: 92px;
+  aspect-ratio: auto;
+  padding: 10px;
+  border: 2px solid rgba(253, 246, 227, 0.42);
+  border-radius: 18px;
+  background: #b8c9f6;
+  color: #073642;
+  box-shadow: inset 0 -2px 0 rgba(0, 43, 54, 0.12);
+}
+
+.month-cell:nth-child(7n),
+.month-head:nth-child(7n) {
+  border-right: 0;
+}
+
+.month-cell.is-muted {
+  background: #8fa2cc;
+  color: rgba(7, 54, 66, 0.62);
+  opacity: 0.62;
+}
+
+.month-cell.is-selected {
+  outline: 3px solid #fdf6e3;
+  outline-offset: -4px;
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 43, 54, 0.12),
+    0 0 0 2px rgba(239, 122, 180, 0.54);
+}
+
+.month-number {
+  align-items: start;
+  font-size: 16px;
+}
+
+.month-date-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(253, 246, 227, 0.96);
+  color: #073642;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.month-check-count {
+  color: rgba(7, 54, 66, 0.72);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.month-checks {
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.month-checks span,
+.month-checks em {
+  background: rgba(253, 246, 227, 0.52);
+  color: #073642;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+@media (max-width: 1100px) {
+  .today-layout,
+  .month-page {
+    grid-template-columns: 1fr;
+  }
+
+  .today-day-column {
+    max-width: none;
+  }
+
+  .month-week-summaries {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dont-forget-wrap {
+  flex: 1 1 520px;
+  max-width: 700px;
+  min-width: 320px;
+  display: grid;
+  gap: 5px;
+}
+
+.dont-forget-wrap .dont-forget-field {
+  flex: none;
+  max-width: none;
+  min-width: 0;
+}
+
+.status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  padding-left: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.status-toggle {
+  --status-color: var(--base01);
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--base03);
+  color: var(--status-color);
+}
+
+button.status-toggle {
+  cursor: pointer;
+}
+
+.status-toggle.is-done {
+  --status-color: var(--teal);
+}
+
+.status-toggle.is-progress {
+  --status-color: #f2c94c;
+}
+
+.status-toggle.is-cancelled {
+  --status-color: #ff8d8d;
+}
+
+.status-toggle.is-postponed {
+  --status-color: #8fc7ff;
+}
+
+.status-toggle.is-delegated {
+  --status-color: #ffb25f;
+}
+
+.status-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  display: block;
+  color: currentColor;
+}
+
+.status-toggle.is-open .status-icon {
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  opacity: 0.58;
+}
+
+.status-toggle.is-done .status-icon::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 11px;
+  height: 7px;
+  border-left: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.status-toggle.is-progress .status-icon {
+  background: linear-gradient(currentColor, currentColor) left 2px center / 12px 3px no-repeat;
+}
+
+.status-toggle.is-progress .status-icon::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-top: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.status-toggle.is-cancelled .status-icon::before,
+.status-toggle.is-cancelled .status-icon::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 8px;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.status-toggle.is-cancelled .status-icon::before {
+  transform: rotate(45deg);
+}
+
+.status-toggle.is-cancelled .status-icon::after {
+  transform: rotate(-45deg);
+}
+
+.status-toggle.is-postponed .status-icon::before,
+.status-toggle.is-postponed .status-icon::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.status-toggle.is-postponed .status-icon::before {
+  top: 5px;
+}
+
+.status-toggle.is-postponed .status-icon::after {
+  top: 11px;
+}
+
+.status-toggle.is-delegated .status-icon {
+  background:
+    linear-gradient(currentColor, currentColor) left 1px center / 7px 3px no-repeat,
+    linear-gradient(currentColor, currentColor) right 1px center / 7px 3px no-repeat;
+}
+
+.status-toggle.is-delegated .status-icon::before,
+.status-toggle.is-delegated .status-icon::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 7px;
+  height: 7px;
+  border-top: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+
+.status-toggle.is-delegated .status-icon::before {
+  left: 5px;
+  transform: rotate(45deg);
+}
+
+.status-toggle.is-delegated .status-icon::after {
+  right: 5px;
+  transform: rotate(-135deg);
+}
+
+.status-legend .status-toggle {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+.status-legend .status-icon {
+  width: 12px;
+  height: 12px;
+  transform: scale(0.72);
+}
+
+.week-task-bucket .list-row {
+  grid-template-columns: 34px minmax(0, 1fr) 30px;
+}
+
+.week-task-bucket .status-toggle,
+.day-checks .status-toggle {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+}
+
+.day-checks .list-row {
+  grid-template-columns: 34px minmax(0, 1fr) 32px;
+}
+
+.day-head {
+  align-items: center;
+}
+
+.day-head-select {
+  display: flex;
+  align-items: center;
+}
+
+.day-head-main {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.day-date-line {
+  color: var(--base1);
+  font-size: 25px;
+  font-weight: 950;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.day-mode-chip {
+  min-width: 54px;
+  padding: 4px 8px;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.day-copy-plan {
+  min-height: 36px;
+  padding: 0 8px;
+  font-size: 15px;
+}
+
+.week-task-bucket .week-task-add {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 18px;
+}
+
+.calendar-segment:not(.time-summary-segment) .segment-head {
+  gap: 3px;
+  line-height: 1.12;
+}
+
+.calendar-segment:not(.time-summary-segment) .segment-head strong,
+.calendar-segment:not(.time-summary-segment) .segment-head span {
+  color: #fffdf0;
+  font-size: 19px;
+  font-weight: 850;
+  line-height: 1.12;
+}
+
+.calendar-segment:not(.time-summary-segment) .segment-title {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-line-clamp: unset;
+}
+
+.calendar-segment.is-compact:not(.time-summary-segment) .segment-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.calendar-segment.is-short:not(.time-summary-segment) .segment-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.calendar-segment.is-tiny:not(.time-summary-segment) .segment-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.calendar-segment.is-short:not(.time-summary-segment) .segment-head strong,
+.calendar-segment.is-short:not(.time-summary-segment) .segment-head span {
+  font-size: 13px;
+}
+
+.calendar-segment.is-tiny:not(.time-summary-segment) .segment-head strong,
+.calendar-segment.is-tiny:not(.time-summary-segment) .segment-head span {
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .dont-forget-wrap {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+.dont-forget-field {
+  flex: 1 1 440px;
+  max-width: 640px;
+  min-width: 300px;
+  gap: 14px;
+}
+
+.dont-forget-field span {
+  font-size: 24px;
+}
+
+.dont-forget-field input {
+  min-height: 58px;
+  padding: 10px 14px;
+  font-size: 24px;
+}
+
+.week-task-columns {
+  position: relative;
+  gap: 0;
+}
+
+.week-task-bucket {
+  padding-right: 16px;
+}
+
+.week-task-bucket + .week-task-bucket {
+  padding-right: 0;
+  padding-left: 18px;
+  border-left: 2px solid rgba(147, 161, 161, 0.34);
+}
+
+.week-task-bucket .quick-line {
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 5px;
+}
+
+.week-task-bucket .field input,
+.week-task-bucket .quick-line input {
+  min-height: 38px;
+  padding: 5px 8px;
+  font-size: 17px;
+}
+
+.week-task-bucket .quick-line button {
+  width: 42px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 22px;
+}
+
+.week-task-bucket .week-check-list {
+  gap: 4px;
+}
+
+.week-task-bucket .list-row {
+  grid-template-columns: 86px minmax(0, 1fr) 34px;
+  min-height: 38px;
+  gap: 5px;
+  padding: 4px 6px;
+}
+
+.week-task-bucket .status-select {
+  min-width: 82px;
+  min-height: 32px;
+  padding: 3px 5px;
+  font-size: 14px;
+}
+
+.week-task-bucket .task-title-input {
+  height: 30px;
+  padding: 3px 5px;
+  font-size: 15px;
+}
+
+.week-task-bucket .row-meta {
+  margin-top: 0;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.week-task-bucket .icon-btn {
+  width: 34px;
+  min-height: 34px;
+  font-size: 16px;
+}
+
+.day-checks {
+  position: relative;
+  z-index: 1;
+  height: 178px;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 4px;
+  padding: 6px;
+  overflow: visible;
+}
+
+.day-checks:hover {
+  z-index: 30;
+}
+
+.day-check-list {
+  display: grid;
+  align-content: start;
+  min-height: 118px;
+  max-height: 118px;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.day-checks:hover .day-check-list.has-overflow {
+  position: absolute;
+  top: 50px;
+  left: 6px;
+  right: 6px;
+  z-index: 32;
+  max-height: 360px;
+  min-height: 118px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+}
+
+.day-checks .daily-check-form {
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 5px;
+}
+
+.day-checks .daily-check-form input {
+  min-height: 38px;
+  padding: 5px 8px;
+  font-size: 15px;
+}
+
+.day-checks .daily-check-add {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  font-size: 22px;
+}
+
+.day-checks .list-row {
+  grid-template-columns: 78px minmax(0, 1fr) 32px;
+  min-height: 34px;
+  gap: 4px;
+  padding: 3px 5px;
+}
+
+.day-checks .status-select {
+  min-width: 74px;
+  min-height: 30px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.day-checks .daily-check-title {
+  height: 28px;
+  padding: 3px 5px;
+  font-size: 14px;
+}
+
+.day-checks .list-row .icon-btn {
+  width: 32px;
+  min-height: 32px;
+  font-size: 15px;
+}
+
+.day-check-list .day-empty {
+  min-height: 34px;
+  display: grid;
+  align-items: center;
+  font-size: 14px;
+}
+
+.calendar-draw-lane.is-plan-mode .actual-summary-segment {
+  z-index: 5;
+  opacity: 0.86;
+}
+
+.calendar-draw-lane.is-plan-mode .plan-segment.is-linked-pair {
+  z-index: 10;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 253, 240, 0.34),
+    0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+@media (max-width: 760px) {
+  .week-task-bucket {
+    padding-right: 0;
+  }
+
+  .week-task-bucket + .week-task-bucket {
+    padding-top: 12px;
+    padding-left: 0;
+    border-top: 2px solid rgba(147, 161, 161, 0.34);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .dont-forget-field {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+}
+
+.status-select {
+  box-sizing: border-box;
+  align-self: center;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 6px;
+  line-height: 1;
+  text-align: center;
+  text-align-last: center;
+  vertical-align: middle;
+}
+
+.task-title-input,
+.daily-check-title {
+  box-sizing: border-box;
+  line-height: 1.25;
+}
+
+.week-task-bucket {
+  gap: 5px;
+}
+
+.week-task-bucket h4 {
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+.week-task-bucket .quick-line {
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 4px;
+}
+
+.week-task-bucket .field input,
+.week-task-bucket .quick-line input {
+  min-height: 34px;
+  padding: 4px 7px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.week-task-bucket .quick-line button {
+  width: 36px;
+  min-height: 34px;
+  font-size: 20px;
+}
+
+.week-task-bucket .week-check-list {
+  gap: 3px;
+}
+
+.week-task-bucket .list-row {
+  grid-template-columns: 78px minmax(0, 1fr) 30px;
+  min-height: 32px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+}
+
+.week-task-bucket .status-select {
+  width: 78px;
+  min-width: 78px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 12px;
+}
+
+.week-task-bucket .task-title-input {
+  height: 28px;
+  min-height: 28px;
+  padding: 2px 5px;
+  font-size: 14px;
+}
+
+.week-task-bucket .row-meta {
+  display: none;
+}
+
+.week-task-bucket .icon-btn {
+  width: 30px;
+  min-height: 30px;
+  font-size: 14px;
+}
+
+.day-checks .list-row {
+  align-items: center;
+}
+
+.day-checks .status-select {
+  width: 78px;
+  min-width: 78px;
+  height: 30px;
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.day-checks .daily-check-title {
+  height: 30px;
+  min-height: 30px;
+  padding: 2px 5px;
+  line-height: 1.25;
+}
+
+@media (max-width: 1100px) and (min-width: 721px) {
+  .app-shell {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    gap: 18px;
+    padding: 16px 12px;
+  }
+
+  .brand {
+    grid-template-columns: 1fr;
+    min-height: 56px;
+    justify-items: center;
+  }
+
+  .binder-mark {
+    width: 38px;
+    height: 46px;
+    border-left-width: 8px;
+  }
+
+  .binder-mark::before {
+    top: 11px;
+  }
+
+  .binder-mark::after {
+    bottom: 11px;
+  }
+
+  .brand-copy,
+  .nav-label,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .nav-btn {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 58px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    grid-template-columns: 1fr;
+    min-width: 54px;
+    min-height: 54px;
+    justify-items: center;
+  }
+
+  .binder-mark {
+    width: 38px;
+    height: 46px;
+    border-left-width: 8px;
+  }
+
+  .binder-mark::before {
+    top: 11px;
+  }
+
+  .binder-mark::after {
+    bottom: 11px;
+  }
+
+  .brand-copy,
+  .nav-label,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .nav-list {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    gap: 8px;
+  }
+
+  .nav-btn {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 54px;
+    padding: 8px;
+  }
+
+  .sidebar-mode {
+    min-width: 164px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sidebar-mode button {
+    min-height: 48px;
+    font-size: 20px;
+  }
+
+  .topbar {
+    position: static;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+  }
+
+  .workspace {
+    padding: 16px;
+  }
+
+  .week-focus-grid,
+  .week-task-columns,
+  .today-layout,
+  .month-page,
+  .three-grid,
+  .two-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Final checkbox row alignment pass. Keep the status icon, title input, and delete button on one optical centerline. */
+.week-task-bucket .list-row,
+.day-checks .list-row {
+  grid-template-columns: 24px minmax(0, 1fr) 24px !important;
+  min-height: 28px !important;
+  height: 28px !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 2px 5px !important;
+  overflow: hidden;
+}
+
+.week-task-bucket .status-toggle,
+.day-checks .status-toggle,
+button.week-task-bucket .status-toggle,
+button.day-checks .status-toggle {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  border-radius: 6px !important;
+  justify-self: center !important;
+  align-self: center !important;
+}
+
+.week-task-bucket .status-icon,
+.day-checks .status-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.week-task-bucket .status-svg,
+.day-checks .status-svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 2.7;
+}
+
+.week-task-bucket .task-title-input,
+.day-checks .daily-check-title {
+  height: 24px !important;
+  min-height: 24px !important;
+  line-height: 24px !important;
+  padding: 0 6px !important;
+  align-self: center !important;
+  margin: 0 !important;
+}
+
+.week-task-bucket .list-row .icon-btn,
+.day-checks .list-row .icon-btn {
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  align-self: center !important;
+  justify-self: center !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+
+.dont-forget-wrap .status-legend {
+  width: 100%;
+  justify-content: center;
+  gap: 8px 16px;
+  padding-left: 0;
+  font-size: 18px;
+}
+
+/* Absolute final checkbox sizing: keep rows compact and icons smaller than text fields. */
+.list-row.check-row,
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row {
+  grid-template-columns: 20px minmax(0, 1fr) 20px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  gap: 3px !important;
+  padding: 1px 4px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.list-row.check-row > .status-toggle,
+.week-task-bucket .list-row.check-row > .status-toggle,
+.day-checks .list-row.check-row > .status-toggle {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  border-radius: 5px !important;
+}
+
+.list-row.check-row .status-icon,
+.list-row.check-row .status-svg {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.list-row.check-row > div {
+  height: 22px !important;
+  min-height: 22px !important;
+  align-items: center !important;
+}
+
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 6px !important;
+}
+
+.list-row.check-row > .icon-btn {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  font-size: 11px !important;
+}
+
+/* Absolute final checkbox sizing: keep rows compact and icons smaller than text fields. */
+.list-row.check-row,
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row {
+  grid-template-columns: 20px minmax(0, 1fr) 20px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  gap: 3px !important;
+  padding: 1px 4px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.list-row.check-row > .status-toggle,
+.week-task-bucket .list-row.check-row > .status-toggle,
+.day-checks .list-row.check-row > .status-toggle {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  border-radius: 5px !important;
+}
+
+.list-row.check-row .status-icon,
+.list-row.check-row .status-svg {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.list-row.check-row > div {
+  height: 22px !important;
+  min-height: 22px !important;
+  align-items: center !important;
+}
+
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 6px !important;
+}
+
+.list-row.check-row > .icon-btn {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  font-size: 11px !important;
+}
+
+/* Final compact polish for weekly check controls and top horizontal navigation. */
+.week-sheet::before {
+  display: none;
+}
+
+.week-sheet .panel-body {
+  padding-left: 16px;
+}
+
+.week-task-title-row {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.week-task-title-row h4 {
+  flex: 0 0 auto;
+}
+
+.week-status-legend {
+  flex: 1 1 auto;
+  justify-content: flex-start !important;
+  gap: 6px 12px !important;
+  padding-left: 0 !important;
+  font-size: 14px !important;
+}
+
+.week-status-legend .status-toggle {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  border-radius: 5px !important;
+}
+
+.week-status-legend .status-icon,
+.week-status-legend .status-svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.week-top-scroll {
+  height: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 4px 0 2px;
+  scrollbar-width: thin;
+}
+
+.week-top-scroll-inner {
+  height: 1px;
+}
+
+.week-task-bucket .week-check-list,
+.day-check-list {
+  gap: 2px !important;
+}
+
+.list-row.check-row,
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row {
+  grid-template-columns: 20px minmax(0, 1fr) 22px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  gap: 3px !important;
+  padding: 1px 4px !important;
+}
+
+.list-row.check-row > .status-toggle,
+.week-task-bucket .list-row.check-row > .status-toggle,
+.day-checks .list-row.check-row > .status-toggle {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  border-radius: 5px !important;
+  background: rgba(0, 43, 54, 0.38) !important;
+}
+
+.list-row.check-row .status-icon {
+  width: 11px !important;
+  height: 11px !important;
+}
+
+.list-row.check-row .status-svg {
+  width: 11px !important;
+  height: 11px !important;
+  stroke-width: 3;
+}
+
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 6px !important;
+}
+
+.list-row.check-row > .icon-btn {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  font-size: 12px !important;
+}
+
+.day-check-list {
+  min-height: 78px !important;
+  max-height: 78px !important;
+}
+
+/* Authoritative checkbox-row layout. This uses .check-row to avoid older list-row overrides. */
+.list-row.check-row,
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: 26px minmax(0, 1fr) 26px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 3px 5px !important;
+  overflow: visible !important;
+}
+
+.list-row.check-row > .status-toggle,
+.week-task-bucket .list-row.check-row > .status-toggle,
+.day-checks .list-row.check-row > .status-toggle {
+  position: static !important;
+  grid-column: 1 !important;
+  box-sizing: border-box !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  line-height: 0 !important;
+}
+
+.list-row.check-row > div {
+  min-width: 0 !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 7px !important;
+  line-height: 24px !important;
+  font-size: 14px !important;
+}
+
+.list-row.check-row > .icon-btn,
+.week-task-bucket .list-row.check-row > .icon-btn,
+.day-checks .list-row.check-row > .icon-btn {
+  grid-column: 3 !important;
+  box-sizing: border-box !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  font-size: 14px !important;
+}
+
+.list-row.check-row .status-icon {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.list-row.check-row .status-svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.day-check-list {
+  min-height: 110px !important;
+  max-height: 110px !important;
+  gap: 4px !important;
+}
+
+.day-checks:hover .day-check-list.has-overflow {
+  max-height: 360px !important;
+}
+
+.week-task-bucket .list-row,
+.day-checks .list-row {
+  grid-template-columns: 36px minmax(0, 1fr) 32px !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.status-toggle,
+button.status-toggle,
+.week-task-bucket .status-toggle,
+.day-checks .status-toggle {
+  box-sizing: border-box;
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  line-height: 0;
+  color: var(--status-color);
+  background: var(--base03);
+}
+
+.status-toggle .status-icon,
+.status-legend .status-icon {
+  position: static !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  background: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.status-toggle .status-icon::before,
+.status-toggle .status-icon::after {
+  content: none !important;
+  display: none !important;
+}
+
+.status-svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.status-toggle.is-open .status-svg {
+  opacity: 0.62;
+}
+
+.status-legend .status-toggle {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  border-radius: 6px;
+}
+
+.status-legend .status-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.status-legend .status-svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+
+.week-task-bucket .task-title-input,
+.day-checks .daily-check-title {
+  align-self: center;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.status-legend {
+  gap: 7px 14px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.status-legend .status-toggle {
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+}
+
+.status-legend .status-icon {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.status-legend .status-svg {
+  width: 17px;
+  height: 17px;
+}
+
+.week-task-bucket .list-row,
+.day-checks .list-row {
+  grid-template-columns: 28px minmax(0, 1fr) 30px !important;
+  min-height: 30px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.week-task-bucket .status-toggle,
+.day-checks .status-toggle {
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  border-radius: 7px;
+}
+
+.week-task-bucket .status-icon,
+.day-checks .status-icon {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.week-task-bucket .status-svg,
+.day-checks .status-svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.6;
+}
+
+.week-task-bucket .task-title-input,
+.day-checks .daily-check-title {
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+/* Last pass: align compact checkbox rows after all responsive overrides. */
+.week-task-bucket .list-row,
+.day-checks .list-row {
+  grid-template-columns: 20px minmax(0, 1fr) 20px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 1px 4px !important;
+  overflow: visible !important;
+}
+
+.week-task-bucket .status-toggle,
+.day-checks .status-toggle {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  border-radius: 5px !important;
+  align-self: center !important;
+  justify-self: center !important;
+}
+
+.week-task-bucket .status-icon,
+.day-checks .status-icon {
+  width: 11px !important;
+  height: 11px !important;
+  border: 0 !important;
+  background: none !important;
+}
+
+.week-task-bucket .status-svg,
+.day-checks .status-svg {
+  width: 11px !important;
+  height: 11px !important;
+  stroke-width: 3;
+}
+
+.week-task-bucket .task-title-input,
+.day-checks .daily-check-title {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 6px !important;
+  align-self: center !important;
+  margin: 0 !important;
+}
+
+.week-task-bucket .list-row .icon-btn,
+.day-checks .list-row .icon-btn {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  align-self: center !important;
+  justify-self: center !important;
+  padding: 0 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+.status-toggle.is-open .status-icon {
+  border: 0 !important;
+  background: none !important;
+}
+
+.week-task-title-row .week-status-legend {
+  flex: 1 1 auto;
+  justify-content: flex-start !important;
+  gap: 5px 10px !important;
+  padding-left: 0 !important;
+  font-size: 15px !important;
+  line-height: 1.15 !important;
+}
+
+.week-task-title-row .week-status-legend span {
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.week-task-title-row .week-status-legend .status-toggle {
+  width: 17px !important;
+  min-width: 17px !important;
+  max-width: 17px !important;
+  height: 17px !important;
+  min-height: 17px !important;
+  max-height: 17px !important;
+  border-radius: 5px !important;
+}
+
+/* Absolute final checkbox polish: target the actual .check-row nodes. */
+.sheet.week-sheet::before {
+  content: none !important;
+  display: none !important;
+}
+
+.week-sheet > * {
+  margin-left: 0 !important;
+}
+
+.week-task-bucket .week-check-list,
+.day-check-list {
+  gap: 1px !important;
+}
+
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row,
+.list-row.check-row {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr) 20px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 1px 4px !important;
+  overflow: visible !important;
+}
+
+.week-task-bucket .list-row.check-row > .status-toggle,
+.day-checks .list-row.check-row > .status-toggle,
+.list-row.check-row > .status-toggle {
+  grid-column: 1 !important;
+  box-sizing: border-box !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 5px !important;
+  line-height: 0 !important;
+  background: rgba(0, 43, 54, 0.42) !important;
+}
+
+.list-row.check-row > .status-toggle.is-open .status-icon {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0 !important;
+  background: none !important;
+}
+
+.week-task-bucket .list-row.check-row .status-icon,
+.day-checks .list-row.check-row .status-icon,
+.list-row.check-row .status-icon {
+  width: 11px !important;
+  height: 11px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  background: none !important;
+}
+
+.week-task-bucket .list-row.check-row .status-svg,
+.day-checks .list-row.check-row .status-svg,
+.list-row.check-row .status-svg {
+  width: 11px !important;
+  height: 11px !important;
+  stroke-width: 3 !important;
+}
+
+.week-task-bucket .list-row.check-row > div,
+.day-checks .list-row.check-row > div,
+.list-row.check-row > div {
+  min-width: 0 !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.week-task-bucket .list-row.check-row .task-title-input,
+.day-checks .list-row.check-row .daily-check-title,
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 6px !important;
+  line-height: 22px !important;
+  font-size: 14px !important;
+}
+
+.week-task-bucket .list-row.check-row > .icon-btn,
+.day-checks .list-row.check-row > .icon-btn,
+.list-row.check-row > .icon-btn {
+  grid-column: 3 !important;
+  box-sizing: border-box !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  display: grid !important;
+  place-items: center !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  font-size: 11px !important;
+}
+
+.week-task-title-row .week-status-legend {
+  flex: 1 1 auto !important;
+  justify-content: flex-start !important;
+  gap: 5px 10px !important;
+  padding-left: 0 !important;
+  font-size: 15px !important;
+  line-height: 1.15 !important;
+}
+
+/* Daily checkboxes keep exactly three visible slots; overflow opens on hover. */
+.day-column:not(.today-day-column) .day-checks {
+  position: relative !important;
+  z-index: 2 !important;
+  height: 122px !important;
+  min-height: 122px !important;
+  max-height: 122px !important;
+  grid-template-rows: 36px 74px !important;
+  gap: 4px !important;
+  padding: 6px !important;
+  overflow: visible !important;
+}
+
+.day-column:not(.today-day-column) .day-checks:hover {
+  z-index: 60 !important;
+}
+
+.day-column:not(.today-day-column) .day-checks .daily-check-form {
+  grid-template-columns: minmax(0, 1fr) 32px !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+
+.day-column:not(.today-day-column) .day-checks .daily-check-form input {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 8px !important;
+  font-size: 14px !important;
+}
+
+.day-column:not(.today-day-column) .day-checks .daily-check-add {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+
+.day-column:not(.today-day-column) .day-check-list {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-auto-rows: 24px !important;
+  align-content: start !important;
+  gap: 1px !important;
+  min-height: 74px !important;
+  height: 74px !important;
+  max-height: 74px !important;
+  overflow: hidden !important;
+}
+
+.day-column:not(.today-day-column) .day-check-list .day-empty {
+  min-height: 24px !important;
+  height: 24px !important;
+  display: grid !important;
+  align-items: center !important;
+  font-size: 13px !important;
+}
+
+.day-column:not(.today-day-column) .day-checks:hover .day-check-list.has-overflow {
+  position: absolute !important;
+  top: 42px !important;
+  left: 6px !important;
+  right: 6px !important;
+  z-index: 70 !important;
+  height: auto !important;
+  max-height: min(320px, calc(100vh - 160px)) !important;
+  overflow-y: auto !important;
+  padding: 2px !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--panel) 96%, var(--base03)) !important;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28) !important;
+}
+
+.calendar-draw-lane.is-plan-mode .actual-summary-segment {
+  z-index: 6;
+  opacity: 0.9;
+}
+
+.calendar-draw-lane.is-plan-mode .plan-segment.is-linked-pair {
+  z-index: 10;
+}
+
+/* Final tab cleanup and smaller checkbox add buttons. */
+.sheet::before,
+.sheet.week-sheet::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+.sheet > * {
+  margin-left: 0 !important;
+}
+
+.topbar-title-block h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.topbar-title-date {
+  color: var(--muted);
+  font-size: 0.55em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.day-checks .daily-check-form,
+.week-task-bucket .week-task-form,
+.day-column:not(.today-day-column) .day-checks .daily-check-form {
+  grid-template-columns: minmax(0, 1fr) 28px !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.day-checks .daily-check-form input,
+.week-task-bucket .week-task-form input,
+.day-column:not(.today-day-column) .day-checks .daily-check-form input {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  padding: 0 8px !important;
+}
+
+.day-checks .daily-check-add,
+.week-task-bucket .week-task-add,
+.day-column:not(.today-day-column) .day-checks .daily-check-add {
+  box-sizing: border-box !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  max-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  display: grid !important;
+  place-items: center !important;
+  justify-self: center !important;
+  align-self: center !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border-color: rgba(42, 161, 152, 0.72) !important;
+  background:
+    linear-gradient(180deg, rgba(55, 214, 198, 0.22), rgba(42, 161, 152, 0.08)),
+    var(--teal) !important;
+  color: var(--base03) !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 43, 54, 0.32), 0 4px 10px rgba(0, 0, 0, 0.18) !important;
+}
+
+.day-checks .daily-check-add:hover,
+.week-task-bucket .week-task-add:hover {
+  transform: translateY(-1px);
+}
+
+.day-column:not(.today-day-column) .day-checks {
+  height: 118px !important;
+  min-height: 118px !important;
+  max-height: 118px !important;
+  grid-template-rows: 32px 74px !important;
+}
+
+/* Checkbox add button final size, including the Today tab side panel. */
+.daily-check-form,
+.week-task-form {
+  grid-template-columns: minmax(0, 1fr) 30px !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.daily-check-form .field,
+.week-task-form .field {
+  align-self: center !important;
+}
+
+.daily-check-form input,
+.week-task-form input {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  padding: 0 8px !important;
+}
+
+.daily-check-add,
+.week-task-add {
+  box-sizing: border-box !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  display: grid !important;
+  place-items: center !important;
+  justify-self: center !important;
+  align-self: center !important;
+  padding: 0 !important;
+  border-radius: 9px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+/* Today tab check rows should stay readable; only weekly day cards use the ultra-tight rows. */
+.today-check-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.today-check-list .list-row.check-row,
+.month-check-list .list-row.check-row {
+  grid-template-columns: 26px minmax(0, 1fr) 26px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: none !important;
+  gap: 6px !important;
+  padding: 4px 6px !important;
+  overflow: visible !important;
+}
+
+.today-check-list .list-row.check-row > .status-toggle,
+.month-check-list .list-row.check-row > .status-toggle {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  border-radius: 6px !important;
+}
+
+.today-check-list .list-row.check-row > div,
+.month-check-list .list-row.check-row > div {
+  height: 28px !important;
+  min-height: 28px !important;
+  overflow: visible !important;
+}
+
+.today-check-list .list-row.check-row .daily-check-title,
+.month-check-list .list-row.check-row .daily-check-title {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+  font-size: 15px !important;
+}
+
+.today-check-list .list-row.check-row > .icon-btn,
+.month-check-list .list-row.check-row > .icon-btn {
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  font-size: 12px !important;
+}
+
+/* Rebuilt month view: weekly summary rail plus a compact calendar board. */
+.month-page {
+  display: block !important;
+}
+
+.month-main-panel .panel-header {
+  padding-bottom: 6px !important;
+}
+
+.month-main-panel .panel-body {
+  padding-top: 8px !important;
+}
+
+.month-scroll {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.month-board {
+  min-width: 1120px;
+  display: grid;
+  grid-template-columns: 230px minmax(860px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.month-calendar-wrap {
+  min-width: 0;
+}
+
+.month-week-summaries {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 40px repeat(6, minmax(108px, 1fr));
+  gap: 8px !important;
+}
+
+.month-summary-head,
+.month-head {
+  min-height: 40px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px !important;
+  background: rgba(7, 54, 66, 0.78) !important;
+  color: var(--muted) !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  text-shadow: none !important;
+}
+
+.month-head.is-sunday {
+  color: #ff8d8d !important;
+  background: rgba(7, 54, 66, 0.78) !important;
+}
+
+.month-week-summary {
+  min-height: 108px !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 6px !important;
+  padding: 9px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  background: rgba(0, 43, 54, 0.46) !important;
+  color: var(--ink) !important;
+  text-align: left !important;
+  cursor: pointer;
+}
+
+.month-week-summary:hover {
+  border-color: rgba(42, 161, 152, 0.7) !important;
+  background: rgba(7, 54, 66, 0.74) !important;
+}
+
+.month-week-summary.is-muted {
+  opacity: 0.48;
+}
+
+.month-week-range {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.month-week-summary strong {
+  color: var(--base2) !important;
+  font-size: 17px !important;
+  line-height: 1.1;
+}
+
+.month-week-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.month-week-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.month-week-tags i,
+.month-week-tags em {
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--summary-color, var(--line-strong)) 62%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--summary-color, var(--panel-soft)) 18%, var(--base03));
+  color: var(--ink);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.month-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(118px, 1fr)) !important;
+  grid-template-rows: 40px repeat(6, minmax(108px, 1fr)) !important;
+  grid-auto-rows: minmax(108px, 1fr) !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+
+.month-cell {
+  min-height: 108px !important;
+  aspect-ratio: auto !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 6px !important;
+  padding: 8px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  background: rgba(0, 43, 54, 0.38) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+.month-cell:hover {
+  border-color: rgba(42, 161, 152, 0.72) !important;
+}
+
+.month-cell.is-muted {
+  background: rgba(0, 43, 54, 0.18) !important;
+  color: var(--quiet) !important;
+  opacity: 0.58 !important;
+}
+
+.month-cell.is-selected {
+  outline: 0 !important;
+  border-color: var(--teal) !important;
+  box-shadow: inset 0 0 0 1px rgba(42, 161, 152, 0.46) !important;
+}
+
+.month-number {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+}
+
+.month-date-pill {
+  min-width: 28px !important;
+  min-height: 22px !important;
+  padding: 1px 7px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 999px !important;
+  background: var(--base03) !important;
+  color: var(--base1) !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+}
+
+.month-check-count {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.month-checks {
+  display: grid !important;
+  gap: 4px !important;
+  margin-top: 0 !important;
+}
+
+.month-check-chip,
+.month-checks em {
+  min-width: 0 !important;
+  min-height: 21px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 2px 6px !important;
+  border: 1px solid rgba(42, 161, 152, 0.24) !important;
+  border-radius: 6px !important;
+  background: rgba(7, 54, 66, 0.58) !important;
+  color: var(--ink) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+}
+
+.month-check-chip b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-check-chip.is-done {
+  opacity: 0.58;
+  text-decoration: line-through;
+}
+
+.month-check-icon.status-toggle {
+  width: 14px !important;
+  min-width: 14px !important;
+  max-width: 14px !important;
+  height: 14px !important;
+  min-height: 14px !important;
+  max-height: 14px !important;
+  border-radius: 4px !important;
+  background: rgba(0, 43, 54, 0.32) !important;
+}
+
+.month-check-icon .status-icon,
+.month-check-icon .status-svg {
+  width: 9px !important;
+  height: 9px !important;
+}
+
+@media (max-width: 1100px) {
+  .month-board {
+    min-width: 980px;
+    grid-template-columns: 210px minmax(760px, 1fr);
+  }
+}
+
+/* Today board checkbox list: show every daily item, aligned as normal rows. */
+.today-day-column .today-board-checks {
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 8px !important;
+  overflow: visible !important;
+}
+
+.today-board-check-list {
+  display: grid;
+  gap: 4px;
+}
+
+.today-board-check-list .list-row.check-row {
+  grid-template-columns: 24px minmax(0, 1fr) 24px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  gap: 5px !important;
+  padding: 3px 5px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.today-board-check-list .list-row.check-row > .status-toggle {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  border-radius: 6px !important;
+}
+
+.today-board-check-list .list-row.check-row > div {
+  height: 24px !important;
+  min-height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.today-board-check-list .list-row.check-row .daily-check-title {
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  font-size: 14px !important;
+}
+
+.today-board-check-list .list-row.check-row > .icon-btn {
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  font-size: 11px !important;
+}
+
+.today-board-check-list .day-empty {
+  min-height: 30px !important;
+  display: grid;
+  align-items: center;
+  font-size: 14px !important;
+}
+
+/* Month final interactions: current-month contrast, hover expansion, and day editor. */
+.month-cell {
+  overflow: visible !important;
+}
+
+.month-cell:not(.is-muted) {
+  background: color-mix(in srgb, var(--panel) 86%, var(--teal) 14%) !important;
+  border-color: rgba(42, 161, 152, 0.46) !important;
+}
+
+.month-cell.is-muted {
+  background: rgba(0, 43, 54, 0.16) !important;
+  border-color: rgba(147, 161, 161, 0.16) !important;
+  color: var(--quiet) !important;
+  opacity: 0.46 !important;
+}
+
+.month-cell.is-muted .month-date-pill,
+.month-cell.is-muted .month-check-chip {
+  opacity: 0.72;
+}
+
+.month-cell:hover,
+.month-cell.has-many-checks:hover {
+  z-index: 80;
+}
+
+.month-cell.has-many-checks .month-checks {
+  max-height: 100px;
+  overflow: hidden;
+}
+
+.month-cell.has-many-checks:hover .month-checks {
+  position: absolute;
+  top: 38px;
+  left: 8px;
+  right: 8px;
+  z-index: 90;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 96%, var(--base03));
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+}
+
+.month-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(0, 25, 31, 0.56);
+}
+
+.month-day-editor {
+  position: fixed;
+  z-index: 130;
+  top: 96px;
+  left: 50%;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 128px));
+  transform: translateX(-50%);
+  overflow: auto;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.46);
+}
+
+.month-day-editor .panel-header {
+  align-items: center;
+}
+
+.month-editor-check-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.month-editor-check-list .list-row.check-row {
+  grid-template-columns: 28px minmax(0, 1fr) 28px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: none !important;
+  gap: 7px !important;
+  padding: 5px 7px !important;
+  overflow: visible !important;
+}
+
+.month-editor-check-list .list-row.check-row > .status-toggle {
+  width: 21px !important;
+  min-width: 21px !important;
+  max-width: 21px !important;
+  height: 21px !important;
+  min-height: 21px !important;
+  max-height: 21px !important;
+}
+
+.month-editor-check-list .list-row.check-row > div {
+  height: 30px !important;
+  min-height: 30px !important;
+  overflow: visible !important;
+}
+
+.month-editor-check-list .list-row.check-row .daily-check-title {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  line-height: 30px !important;
+  font-size: 16px !important;
+}
+
+.month-editor-check-list .list-row.check-row > .icon-btn {
+  width: 23px !important;
+  min-width: 23px !important;
+  max-width: 23px !important;
+  height: 23px !important;
+  min-height: 23px !important;
+  max-height: 23px !important;
+}
+
+/* Today tab uses the same editable Plan/Do timeline behavior as the week tab. */
+.today-editable-lane {
+  cursor: crosshair;
+}
+
+.today-calendar-segment:not(.is-readonly):not(.time-summary-segment) .segment-resize-handle {
+  display: block;
+}
+
+.today-calendar-segment.is-readonly .segment-resize-handle,
+.today-calendar-segment.time-summary-segment .segment-resize-handle {
+  display: none !important;
 }
