@@ -903,6 +903,16 @@
           <span>내용</span>
           <textarea name="title" required autofocus placeholder="무엇을 할까요?">${esc(value)}</textarea>
         </label>
+        <div class="popover-time-grid">
+          <label>
+            <span>시작 시간</span>
+            <input type="time" name="start" value="${attr(schedulePopup.start)}" step="900" required>
+          </label>
+          <label>
+            <span>끝 시간</span>
+            <input type="time" name="end" value="${attr(schedulePopup.end)}" step="900" required>
+          </label>
+        </div>
         <div class="popover-categories ${categoryLocked ? "is-locked" : ""}" role="group" aria-label="일정 분류">
           ${categories.map((category) => `
             <label>
@@ -2629,7 +2639,7 @@
 
   function popupPosition(x, y) {
     const width = 560;
-    const height = 500;
+    const height = 580;
     const margin = 16;
     const maxX = Math.max(margin, (window.innerWidth || width + margin * 2) - width - margin);
     const maxY = Math.max(margin, (window.innerHeight || height + margin * 2) - height - margin);
@@ -3034,7 +3044,8 @@
       if (!schedulePopup) return;
       const popup = { ...schedulePopup };
       const title = String(data.title || "").trim();
-      const categoryId = normalizeCategoryId(data.categoryId);
+      const categoryId = normalizeCategoryId(data.categoryId || popup.categoryId);
+      const range = normalizeScheduleRange(data.start || popup.start, data.end || popup.end);
       if (!title) return;
       schedulePopup = null;
       setState((draft) => {
@@ -3045,15 +3056,19 @@
             target.actualText = title;
             target.actualCategoryId = categoryId;
             target.actualDone = true;
-            if (!target.actualStart) target.actualStart = popup.start || target.start;
-            if (!target.actualEnd) target.actualEnd = popup.end || target.end;
+            target.actualStart = range.start;
+            target.actualEnd = range.end;
             if (target.actualOnly) {
               target.title = title;
               target.categoryId = categoryId;
+              target.start = range.start;
+              target.end = range.end;
             }
           } else {
             target.title = title;
             target.categoryId = categoryId;
+            target.start = range.start;
+            target.end = range.end;
             if (!blockHasActualLine(target) && !target.actualOnly) {
               target.actualCategoryId = categoryId;
             }
@@ -3067,8 +3082,8 @@
             id: uid("block"),
             title,
             date: popup.date,
-            start: popup.start,
-            end: popup.end,
+            start: range.start,
+            end: range.end,
             categoryId,
             actualCategoryId: categoryId,
             goalId: "",
@@ -3092,15 +3107,15 @@
           id: uid("block"),
           title,
           date: popup.date,
-          start: popup.start,
-          end: popup.end,
+          start: range.start,
+          end: range.end,
           categoryId,
           actualCategoryId: categoryId,
           goalId: "",
           projectId: "",
           status: "actual",
-          actualStart: popup.start,
-          actualEnd: popup.end,
+          actualStart: range.start,
+          actualEnd: range.end,
           actualText: title,
           actualDone: true,
           actualOnly: true,

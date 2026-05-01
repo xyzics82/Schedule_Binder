@@ -2765,6 +2765,38 @@ body {
   box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.16);
 }
 
+.popover-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.popover-time-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.popover-time-grid input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: var(--base03);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 800;
+  outline: 0;
+}
+
+.popover-time-grid input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.16);
+}
+
 .popover-categories {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2905,6 +2937,7 @@ body {
 
 @media (max-width: 760px) {
   .popover-categories,
+  .popover-time-grid,
   .week-task-columns {
     grid-template-columns: 1fr;
   }
@@ -6302,4 +6335,58 @@ button.status-toggle,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Slightly larger checkbox text without loosening the compact layout too much. */
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row,
+.list-row.check-row {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+}
+
+.week-task-bucket .list-row.check-row > div,
+.day-checks .list-row.check-row > div,
+.list-row.check-row > div {
+  height: 24px !important;
+  min-height: 24px !important;
+}
+
+.week-task-bucket .list-row.check-row .task-title-input,
+.day-checks .list-row.check-row .daily-check-title,
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  font-size: 15px !important;
+}
+
+.day-column:not(.today-day-column) .day-checks {
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  grid-template-rows: 32px 80px !important;
+}
+
+.day-column:not(.today-day-column) .day-check-list {
+  grid-auto-rows: 26px !important;
+  min-height: 80px !important;
+  height: 80px !important;
+  max-height: 80px !important;
+}
+
+.today-check-list .list-row.check-row .daily-check-title,
+.month-check-list .list-row.check-row .daily-check-title {
+  font-size: 16px !important;
+}
+
+.today-board-check-list .list-row.check-row .daily-check-title {
+  font-size: 15px !important;
+}
+
+.month-editor-check-list .list-row.check-row .daily-check-title {
+  font-size: 17px !important;
 }
