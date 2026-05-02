@@ -1488,6 +1488,30 @@ button {
   font-size: 12px;
 }
 
+.today-detail-panel .block-memo {
+  min-height: 180px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.today-journal-box {
+  display: grid;
+  gap: 8px;
+}
+
+.daily-journal {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 12px;
+  resize: vertical;
+  color: var(--ink);
+  background: var(--base03);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
 .photo-strip {
   display: flex;
   flex-wrap: wrap;
@@ -2817,15 +2841,27 @@ body {
   font-weight: 800;
 }
 
+.popover-categories .category-swatch {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 253, 240, 0.54);
+  border-radius: 999px;
+  background: var(--category-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color) 20%, transparent);
+}
+
 .popover-categories input {
   width: 20px;
   height: 20px;
-  accent-color: var(--teal);
+  accent-color: var(--category-color, var(--teal));
 }
 
 .popover-categories label:has(input:checked) {
-  border-color: var(--teal);
-  background: rgba(42, 161, 152, 0.14);
+  border-color: var(--category-color);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--category-color) 20%, transparent), rgba(42, 161, 152, 0.08)),
+    rgba(0, 43, 54, 0.32);
   color: var(--base2);
 }
 
@@ -2952,7 +2988,7 @@ body {
 .day-head-main {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
 }
 
@@ -2967,6 +3003,7 @@ body {
   font-size: 20px;
   font-weight: 900;
   text-align: center;
+  cursor: pointer;
 }
 
 .day-mode-chip.is-do {
@@ -5029,9 +5066,9 @@ button.day-checks .status-toggle {
   box-sizing: border-box !important;
   display: grid !important;
   grid-template-columns: 26px minmax(0, 1fr) 26px !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  max-height: 34px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
   align-items: center !important;
   gap: 5px !important;
   padding: 3px 5px !important;
@@ -5060,7 +5097,7 @@ button.day-checks .status-toggle {
 
 .list-row.check-row > div {
   min-width: 0 !important;
-  height: 28px !important;
+  height: 30px !important;
   display: flex !important;
   align-items: center !important;
   overflow: hidden !important;
@@ -5070,14 +5107,14 @@ button.day-checks .status-toggle {
 .list-row.check-row .daily-check-title {
   box-sizing: border-box !important;
   width: 100% !important;
-  height: 26px !important;
-  min-height: 26px !important;
-  max-height: 26px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
   display: block !important;
   margin: 0 !important;
   padding: 0 7px !important;
-  line-height: 24px !important;
-  font-size: 14px !important;
+  line-height: 27px !important;
+  font-size: 15px !important;
 }
 
 .list-row.check-row > .icon-btn,
@@ -5112,8 +5149,8 @@ button.day-checks .status-toggle {
 }
 
 .day-check-list {
-  min-height: 110px !important;
-  max-height: 110px !important;
+  min-height: 116px !important;
+  max-height: 116px !important;
   gap: 4px !important;
 }
 
@@ -6389,4 +6426,715 @@ button.status-toggle,
 
 .month-editor-check-list .list-row.check-row .daily-check-title {
   font-size: 17px !important;
+}
+
+/* 2026-05-02 readability pass: make checkbox text easier to read without returning to bulky rows. */
+.week-task-bucket .list-row.check-row,
+.day-checks .list-row.check-row,
+.list-row.check-row {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  align-items: center !important;
+}
+
+.week-task-bucket .list-row.check-row > div,
+.day-checks .list-row.check-row > div,
+.list-row.check-row > div {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  align-items: center !important;
+}
+
+.week-task-bucket .list-row.check-row .task-title-input,
+.day-checks .list-row.check-row .daily-check-title,
+.list-row.check-row .task-title-input,
+.list-row.check-row .daily-check-title {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 27px !important;
+  font-size: 16px !important;
+}
+
+.day-column:not(.today-day-column) .day-checks {
+  height: 136px !important;
+  min-height: 136px !important;
+  max-height: 136px !important;
+  grid-template-rows: 32px 92px !important;
+}
+
+.day-column:not(.today-day-column) .day-check-list {
+  grid-auto-rows: 30px !important;
+  min-height: 92px !important;
+  height: 92px !important;
+  max-height: 92px !important;
+}
+
+.today-board-check-list .list-row.check-row .daily-check-title {
+  font-size: 16px !important;
+}
+
+.today-day-column {
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+.today-detail-checks {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.today-detail-check-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.today-detail-check-head h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+.today-detail-check-head span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.today-detail-checks .daily-check-form {
+  grid-template-columns: minmax(0, 1fr) 34px !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.today-detail-checks .daily-check-form input {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 9px !important;
+}
+
+.today-detail-checks .daily-check-add {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+}
+
+/* Final plus-button polish: compact button, larger centered plus. */
+.daily-check-add,
+.week-task-add,
+.day-column:not(.today-day-column) .day-checks .daily-check-add {
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  text-align: center !important;
+}
+
+.schedule-popover {
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+}
+
+.plan-copy-backdrop {
+  background: rgba(0, 43, 54, 0.28);
+}
+
+.plan-copy-popover {
+  position: fixed;
+  z-index: 62;
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--teal) 46%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--base02) 94%, var(--base03));
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.44);
+}
+
+.plan-copy-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 10px;
+  align-items: start;
+}
+
+.plan-copy-head strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.plan-copy-head span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.plan-copy-head button,
+.plan-copy-monthbar button {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.plan-copy-head button {
+  width: 34px;
+  height: 34px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.plan-copy-monthbar {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.plan-copy-monthbar strong {
+  justify-self: center;
+  font-size: 18px;
+}
+
+.plan-copy-monthbar button {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+}
+
+.plan-copy-weekdays,
+.plan-copy-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.plan-copy-weekdays span {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.plan-copy-day {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.plan-copy-day:hover {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 20%, var(--base03));
+}
+
+.plan-copy-day.is-muted {
+  opacity: 0.42;
+}
+
+.plan-copy-day.is-today {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.plan-copy-day.is-source {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pink) 72%, transparent);
+}
+
+.category-guide-table {
+  display: grid;
+  gap: 6px;
+}
+
+.category-guide-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.24fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.category-guide-head {
+  background: color-mix(in srgb, var(--teal) 18%, var(--base03));
+}
+
+.category-guide-row strong,
+.category-guide-row span {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.category-guide-row p {
+  margin: 0;
+  color: var(--base1);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .category-guide-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2026-05-02 viewport density guard: keep week view usable on smaller screens without runaway text sizes. */
+html {
+  text-size-adjust: 100%;
+}
+
+body {
+  font-size: 16px !important;
+}
+
+.app-shell {
+  grid-template-columns: minmax(72px, 180px) minmax(0, 1fr) !important;
+  min-width: 0 !important;
+}
+
+.sidebar {
+  gap: 10px !important;
+  padding: 12px 10px !important;
+}
+
+.brand {
+  min-height: 54px !important;
+  grid-template-columns: 36px minmax(0, 1fr) !important;
+}
+
+.binder-mark {
+  width: 32px !important;
+  height: 40px !important;
+}
+
+.brand-title,
+.sidebar .brand-title {
+  font-size: 21px !important;
+  line-height: 1.08 !important;
+}
+
+.brand-subtitle,
+.sidebar .brand-subtitle {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+
+.nav-btn {
+  min-height: 40px !important;
+  padding: 7px 8px !important;
+  font-size: 14px !important;
+}
+
+.nav-icon {
+  width: 27px !important;
+  height: 27px !important;
+  font-size: 15px !important;
+}
+
+.sidebar-mode {
+  gap: 6px !important;
+  padding: 6px !important;
+}
+
+.sidebar-mode button {
+  min-height: 38px !important;
+  font-size: 15px !important;
+}
+
+.topbar {
+  gap: 10px !important;
+  padding: 10px 14px !important;
+}
+
+.topbar h1 {
+  font-size: 28px !important;
+  line-height: 1.1 !important;
+}
+
+.topbar p,
+.panel-subtitle,
+.save-hint {
+  font-size: 14px !important;
+}
+
+.panel-title {
+  font-size: 22px !important;
+  line-height: 1.15 !important;
+}
+
+.toolbar .text-btn,
+.toolbar .icon-btn,
+.date-chip,
+.sync-chip {
+  min-height: 32px !important;
+  font-size: 14px !important;
+}
+
+.workspace {
+  min-width: 0 !important;
+  padding: 12px !important;
+  overflow-x: hidden;
+}
+
+.week-planner-scroll,
+.week-top-scroll {
+  max-width: 100% !important;
+}
+
+.week-planner {
+  min-width: 1120px !important;
+  grid-template-columns: repeat(7, minmax(160px, 1fr)) !important;
+  gap: 6px !important;
+}
+
+.day-column {
+  min-width: 0 !important;
+}
+
+.day-date-line {
+  font-size: 18px !important;
+  line-height: 1.1 !important;
+}
+
+.day-mode-chip {
+  min-width: 48px !important;
+  padding: 4px 7px !important;
+  font-size: 15px !important;
+}
+
+.day-copy-plan {
+  min-height: 30px !important;
+  padding: 0 7px !important;
+  font-size: 13px !important;
+}
+
+.calendar-segment:not(.time-summary-segment) .segment-head strong,
+.calendar-segment:not(.time-summary-segment) .segment-head span {
+  font-size: 15px !important;
+  line-height: 1.14 !important;
+}
+
+.time-summary-segment .segment-head strong,
+.time-summary-segment .segment-head span {
+  font-size: 12px !important;
+}
+
+.today-detail-top {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(280px, 0.78fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.today-detail-checks {
+  min-width: 0;
+}
+
+.journal-story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 9px;
+}
+
+.journal-photo-card,
+.journal-photo-add {
+  position: relative;
+  min-height: 132px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--base03);
+}
+
+.journal-photo-card {
+  margin: 0;
+}
+
+.journal-photo-card img {
+  width: 100%;
+  height: 100%;
+  min-height: 132px;
+  display: block;
+  object-fit: cover;
+}
+
+.journal-photo-card figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 8px;
+  background: rgba(0, 43, 54, 0.72);
+  color: var(--base2);
+  font-size: 12px;
+}
+
+.journal-photo-card button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(253, 246, 227, 0.4);
+  border-radius: 999px;
+  background: rgba(0, 43, 54, 0.76);
+  color: var(--base2);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.journal-photo-add {
+  display: grid;
+  place-items: center;
+  min-height: 132px;
+  border-style: dashed;
+  color: var(--teal);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.journal-photo-add input {
+  display: none;
+}
+
+.today-share-box {
+  display: grid;
+  gap: 12px;
+}
+
+.share-explain {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--teal) 38%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--teal) 11%, var(--base03));
+}
+
+.share-explain strong {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.share-explain p {
+  margin: 0;
+  color: var(--base1);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.share-format-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.share-format-btn {
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  color: var(--ink);
+  text-align: left;
+}
+
+.share-format-btn strong {
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.share-format-btn span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.share-format-btn.is-active {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 18%, var(--base03));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 42%, transparent);
+}
+
+.share-source-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.share-source-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--base02) 70%, var(--base03));
+  color: var(--base1);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-primary,
+.share-secondary {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.share-primary {
+  border: 1px solid color-mix(in srgb, var(--pink) 70%, var(--line));
+  background: color-mix(in srgb, var(--pink) 18%, var(--base03));
+  color: var(--pink);
+}
+
+.share-secondary {
+  border: 1px solid color-mix(in srgb, var(--teal) 54%, var(--line));
+  background: color-mix(in srgb, var(--teal) 12%, var(--base03));
+  color: var(--teal);
+}
+
+.daily-share-draft {
+  width: 100%;
+  min-height: 280px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--base03) 82%, #001f28);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.daily-share-draft:focus {
+  border-color: var(--teal);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 22%, transparent);
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sidebar {
+    position: static !important;
+    height: auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+
+  .brand {
+    min-width: 44px !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .brand-copy {
+    display: none !important;
+  }
+
+  .nav-list {
+    grid-auto-flow: column !important;
+    grid-auto-columns: max-content !important;
+  }
+
+  .nav-label {
+    display: inline !important;
+  }
+
+  .topbar {
+    position: static !important;
+    flex-wrap: wrap !important;
+  }
+
+  .week-planner {
+    min-width: 980px !important;
+    grid-template-columns: repeat(7, minmax(140px, 1fr)) !important;
+  }
+
+  .today-detail-top {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace {
+    padding: 8px !important;
+  }
+
+  .topbar h1 {
+    font-size: 24px !important;
+  }
+
+  .topbar,
+  .toolbar {
+    align-items: flex-start !important;
+  }
+
+  .week-planner {
+    min-width: 910px !important;
+    grid-template-columns: repeat(7, minmax(130px, 1fr)) !important;
+  }
+
+  .day-date-line {
+    font-size: 16px !important;
+  }
+
+  .journal-story-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .share-format-bar {
+    grid-template-columns: 1fr;
+  }
 }

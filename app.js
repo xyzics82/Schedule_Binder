@@ -10,8 +10,8 @@
   const app = document.getElementById("app");
 
   const categories = [
-    { id: "mainWork", name: "주업무", color: "#e85d8f" },
-    { id: "supportWork", name: "보조업무", color: "#f2c94c" },
+    { id: "mainWork", name: "주업무", color: "#f2c94c" },
+    { id: "supportWork", name: "보조업무", color: "#e85d8f" },
     { id: "faithHome", name: "신앙/가정/봉사", color: "#2ec27e" },
     { id: "selfDev", name: "자기개발", color: "#4dabf7" },
     { id: "network", name: "휴먼 네트워크", color: "#ff922b" }
@@ -27,6 +27,13 @@
     { id: "progress", symbol: "->", label: "\uc9c4\ud589\uc911" },
     { id: "cancelled", symbol: "-x-", label: "\ucde8\uc18c" },
     { id: "postponed", symbol: "=", label: "\uc5f0\uae30/\uc704\uc784" }
+  ];
+
+  const shareFormats = [
+    { id: "essay", label: "브런치/Medium", tone: "차분한 에세이" },
+    { id: "social", label: "인스타/Threads", tone: "짧은 사진 글" },
+    { id: "professional", label: "LinkedIn", tone: "배운 점 중심" },
+    { id: "newsletter", label: "Substack", tone: "편지형 글" }
   ];
 
   const navItems = [
@@ -56,7 +63,9 @@
   let remoteSavePromise = Promise.resolve();
   let drawState = null;
   let editDragState = null;
+  let suppressSegmentClick = null;
   let schedulePopup = null;
+  let planCopyPicker = null;
   let monthEditorDate = null;
 
   function todayISO() {
@@ -224,6 +233,10 @@
   function nextCheckStatus(id) {
     const currentIndex = checkStatuses.findIndex((entry) => entry.id === normalizeCheckStatus(id));
     return checkStatuses[(currentIndex + 1) % checkStatuses.length].id;
+  }
+
+  function shareFormatById(id) {
+    return shareFormats.find((format) => format.id === id) || shareFormats[0];
   }
 
   function checkIsDone(item) {
@@ -519,7 +532,10 @@
         ...log,
         top: Array.isArray(log?.top) ? log.top : ["", "", ""],
         text: log?.text || "",
-        checks: Array.isArray(log?.checks) ? log.checks.map(normalizeDailyCheck) : []
+        checks: Array.isArray(log?.checks) ? log.checks.map(normalizeDailyCheck) : [],
+        photos: Array.isArray(log?.photos) ? log.photos : [],
+        shareDraft: log?.shareDraft || "",
+        shareFormat: shareFormatById(log?.shareFormat).id
       };
     });
     return {
@@ -678,9 +694,12 @@
       reviews: {
         daily: {
           [today]: {
-            top: ["오늘 일정 쓰기", "미완료 줄이기", "저녁에 3줄 회고"],
+            top: ["", "", ""],
             text: "",
-            checks: []
+            checks: [],
+            photos: [],
+            shareDraft: "",
+            shareFormat: "essay"
           }
         },
         weekly: {
@@ -700,7 +719,7 @@
 
   function captureScrollState() {
     const scrollingElement = document.scrollingElement || document.documentElement;
-    const selectors = [".week-planner-scroll", ".month-scroll", ".workspace", ".main"];
+    const selectors = ["[data-week-top-scroll]", ".week-planner-scroll", ".month-scroll", ".workspace", ".main"];
     return {
       x: window.scrollX,
       y: window.scrollY,
@@ -719,7 +738,7 @@
 
   function restoreScrollState(snapshot) {
     if (!snapshot) return;
-    window.requestAnimationFrame(() => {
+    const apply = () => {
       const scrollingElement = document.scrollingElement || document.documentElement;
       scrollingElement.scrollTop = snapshot.rootTop;
       scrollingElement.scrollLeft = snapshot.rootLeft;
@@ -730,6 +749,10 @@
         element.scrollTop = item.top;
         element.scrollLeft = item.left;
       });
+    };
+    window.requestAnimationFrame(() => {
+      apply();
+      window.requestAnimationFrame(apply);
     });
   }
 
@@ -757,6 +780,7 @@
         </main>
       </div>
       ${renderSchedulePopup()}
+      ${renderPlanCopyPicker()}
     `;
     bindEvents();
   }
@@ -915,8 +939,9 @@
         </div>
         <div class="popover-categories ${categoryLocked ? "is-locked" : ""}" role="group" aria-label="일정 분류">
           ${categories.map((category) => `
-            <label>
+            <label style="--category-color:${attr(category.color)}">
               <input type="checkbox" name="categoryId" value="${attr(category.id)}" ${category.id === categoryId ? "checked" : ""} ${categoryLocked ? "disabled" : ""}>
+              <span class="category-swatch" aria-hidden="true"></span>
               <span>${esc(category.name)}</span>
             </label>
           `).join("")}
@@ -927,6 +952,59 @@
           <button type="submit" class="text-btn primary">저장</button>
         </div>
       </form>
+    `;
+  }
+
+  function monthStartISO(iso) {
+    const date = parseISO(iso);
+    date.setDate(1);
+    return toISO(date);
+  }
+
+  function sameMonth(a, b) {
+    const left = parseISO(a);
+    const right = parseISO(b);
+    return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
+  }
+
+  function renderPlanCopyPicker() {
+    if (!planCopyPicker) return "";
+    const sourceDate = planCopyPicker.sourceDate;
+    const month = monthStartISO(planCopyPicker.month || sourceDate);
+    const gridStart = startOfWeek(month);
+    const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+    const planCount = state.blocks.filter((block) => block.date === sourceDate && !block.actualOnly && !block.cancelled).length;
+    const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+    return `
+      <div class="popup-backdrop plan-copy-backdrop" data-close-plan-copy></div>
+      <section class="plan-copy-popover" role="dialog" aria-modal="true" aria-label="Plan 복사 날짜 선택">
+        <div class="plan-copy-head">
+          <div>
+            <strong>Plan 복사</strong>
+            <span>${esc(dayHeadLabel(sourceDate))}의 계획 ${planCount}개를 복사할 날짜를 고릅니다.</span>
+          </div>
+          <button type="button" data-close-plan-copy title="닫기">×</button>
+        </div>
+        <div class="plan-copy-monthbar">
+          <button type="button" data-plan-copy-month-shift="-1" title="이전 달">‹</button>
+          <strong>${esc(monthTitle(month))}</strong>
+          <button type="button" data-plan-copy-month-shift="1" title="다음 달">›</button>
+        </div>
+        <div class="plan-copy-weekdays">
+          ${weekdays.map((day) => `<span>${esc(day)}</span>`).join("")}
+        </div>
+        <div class="plan-copy-calendar">
+          ${days.map((day) => {
+            const isSource = day === sourceDate;
+            const isToday = day === todayISO();
+            return `
+              <button type="button" class="plan-copy-day ${sameMonth(day, month) ? "" : "is-muted"} ${isToday ? "is-today" : ""} ${isSource ? "is-source" : ""}" data-plan-copy-target="${attr(day)}" title="${attr(dayHeadLabel(day))}">
+                <span>${parseISO(day).getDate()}</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </section>
     `;
   }
 
@@ -993,48 +1071,10 @@
           </div>
         </section>
         <aside class="today-side">
-          ${renderTodayDetailPanel(selectedBlock)}
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">오늘의 핵심 3가지</h2>
-                <p class="panel-subtitle">오늘 반드시 할 행동만 짧게 적습니다.</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="top-three">
-                ${[0, 1, 2].map((idx) => `
-                  <input class="daily-top" data-top-index="${idx}" value="${attr(log.top[idx] || "")}" placeholder="핵심 행동 ${idx + 1}">
-                `).join("")}
-              </div>
-            </div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">오늘 체크박스</h2>
-                <p class="panel-subtitle">주간 체크박스와 별도로 저장됩니다.</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              ${renderDailyCheckForm(date)}
-              <div class="list today-check-list">
-                ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<div class="empty">오늘 체크박스가 없습니다.</div>`}
-              </div>
-            </div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">3줄 회고</h2>
-                <p class="panel-subtitle">지나치게 길지 않게 다음 계획의 재료만 남깁니다.</p>
-              </div>
-            </div>
-            <div class="panel-body review-box">
-              <textarea class="daily-review" data-review-date="${attr(date)}" placeholder="오늘 배운 것, 잘한 것, 내일 조정할 것을 적어보세요.">${esc(log.text || "")}</textarea>
-              <span class="save-hint">입력 후 포커스를 벗어나면 자동 저장됩니다.</span>
-            </div>
-          </section>
+          ${renderTodayDetailPanel(selectedBlock, date, dailyChecks)}
+          ${renderTodayMemoPanel(selectedBlock)}
+          ${renderTodayJournalPanel(date, log)}
+          ${renderTodaySharePanel(date, log)}
         </aside>
       </div>
     `;
@@ -1062,20 +1102,16 @@
 
   function renderTodayScheduleBoard(date, selectedBlockId) {
     const blocks = blocksForDate(date);
-    const dailyChecks = ensureDailyLog(date).checks || [];
     const mode = state.weekDrawMode || "plan";
     const segments = layoutCalendarSegments(blocks, mode);
     return `
       <div class="day-column today-day-column">
-            <button class="day-head" data-view="week" title="주간 탭에서 보기">
-              <div class="day-head-main">
-                <span class="day-date-line">${esc(dayHeadLabel(date))}</span>
-                <span class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}">${mode === "actual" ? "Do" : "Plan"}</span>
-              </div>
+        <div class="day-head">
+          <div class="day-head-main">
+            <button class="day-head-select" data-view="week" title="주간 탭에서 보기">
+              <span class="day-date-line">${esc(dayHeadLabel(date))}</span>
             </button>
-        <div class="day-checks today-board-checks">
-          <div class="today-board-check-list">
-            ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<span class="day-empty">오늘 체크박스가 없습니다.</span>`}
+            <button type="button" class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}" data-toggle-week-mode title="Plan/Do 전환">${mode === "actual" ? "Do" : "Plan"}</button>
           </div>
         </div>
         <div class="day-draw-board">
@@ -1088,7 +1124,8 @@
     `;
   }
 
-  function renderTodayDetailPanel(block) {
+  function renderTodayDetailPanel(block, date, dailyChecks) {
+    const checksMarkup = renderTodayDetailChecks(date, dailyChecks);
     if (!block) {
       return `
         <section class="panel today-detail-panel">
@@ -1098,15 +1135,18 @@
               <p class="panel-subtitle">왼쪽 일정 중 기록을 남길 항목을 선택합니다.</p>
             </div>
           </div>
-          <div class="panel-body"><div class="empty">선택한 일정이 없습니다.</div></div>
+          <div class="panel-body">
+            <div class="today-detail-top">
+              <div class="empty">선택한 일정이 없습니다.</div>
+              ${checksMarkup}
+            </div>
+          </div>
         </section>
       `;
     }
     const hasPlan = !block.actualOnly;
     const hasActual = blockHasActualLine(block);
     const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
-    const actualStart = block.actualStart || block.start;
-    const actualEnd = block.actualEnd || block.end;
     return `
       <section class="panel today-detail-panel">
         <div class="panel-header">
@@ -1116,28 +1156,62 @@
           </div>
         </div>
         <div class="panel-body">
-          <div class="today-detail-summary" style="border-left-color:${attr(category.color)}">
-            <strong>${multiline(block.actualText || block.title || "일정")}</strong>
-            <span>${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
-            <div class="today-detail-actions">
-              ${hasPlan ? `<button type="button" class="text-btn" data-edit-plan="${attr(block.id)}">계획 수정</button>` : ""}
-              ${hasActual ? `<button type="button" class="text-btn" data-edit-actual="${attr(block.id)}">실행 수정</button>` : ""}
+          <div class="today-detail-top">
+            <div class="today-detail-summary" style="border-left-color:${attr(category.color)}">
+              <strong>${multiline(block.actualText || block.title || "일정")}</strong>
+              <span>${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
+              <div class="today-detail-actions">
+                ${hasPlan ? `<button type="button" class="text-btn" data-edit-plan="${attr(block.id)}">계획 수정</button>` : ""}
+                ${hasActual
+                  ? `<button type="button" class="text-btn" data-edit-actual="${attr(block.id)}">실행 수정</button>`
+                  : hasPlan ? `<button type="button" class="text-btn" data-create-actual-detail="${attr(block.id)}">실행 만들기</button>` : ""}
+              </div>
+            </div>
+            ${checksMarkup}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTodayDetailChecks(date, dailyChecks) {
+    return `
+      <div class="today-detail-checks">
+        <div class="today-detail-check-head">
+          <h3>오늘 체크박스</h3>
+          <span>하루 체크항목</span>
+        </div>
+        ${renderDailyCheckForm(date)}
+        <div class="list today-check-list">
+          ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<div class="empty">오늘 체크박스가 없습니다.</div>`}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTodayMemoPanel(block) {
+    if (!block) {
+      return `
+        <section class="panel today-memo-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">메모</h2>
+              <p class="panel-subtitle">일정을 선택하면 메모를 남길 수 있습니다.</p>
             </div>
           </div>
-          <div class="today-detail-pair">
-            <article>
-              <h3>Plan</h3>
-              ${hasPlan
-                ? `<strong>${multiline(block.title || "계획")}</strong><span>${esc(block.start)}-${esc(block.end)}</span>`
-                : `<em>계획 항목 없음</em>`}
-            </article>
-            <article>
-              <h3>Do</h3>
-              ${hasActual
-                ? `<strong>${multiline(block.actualText || block.title || "실행")}</strong><span>${esc(actualStart)}-${esc(actualEnd)}</span>`
-                : `<em>실행 기록 없음</em>`}
-            </article>
+          <div class="panel-body"><div class="empty">선택한 일정이 없습니다.</div></div>
+        </section>
+      `;
+    }
+    return `
+      <section class="panel today-memo-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">메모</h2>
+            <p class="panel-subtitle">선택한 일정에 연결됩니다.</p>
           </div>
+        </div>
+        <div class="panel-body">
           <div class="today-note-card ${blockHasLinkedNote(block) ? "has-note" : ""}">
             <label class="note-label" for="memo-${attr(block.id)}">메모</label>
             <textarea id="memo-${attr(block.id)}" class="block-memo" data-block-id="${attr(block.id)}" placeholder="이 일정에만 남길 생각, 결과, 다음 행동">${esc(block.memoText || "")}</textarea>
@@ -1151,6 +1225,203 @@
           </div>
         </div>
       </section>
+    `;
+  }
+
+  function renderTodayJournalPanel(date, log) {
+    const photos = Array.isArray(log.photos) ? log.photos : [];
+    return `
+      <section class="panel today-journal-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">오늘 일기</h2>
+            <p class="panel-subtitle">일상을 사진과 글로 정리합니다.</p>
+          </div>
+        </div>
+        <div class="panel-body today-journal-box">
+          <textarea class="daily-journal" data-journal-date="${attr(date)}" placeholder="오늘의 일, 감정, 기억할 장면, 내일로 이어갈 생각을 적어보세요.">${esc(log.text || "")}</textarea>
+          <div class="journal-story-grid">
+            ${photos.map((photo, idx) => renderJournalPhoto(photo, idx, date)).join("")}
+            <label class="journal-photo-add">
+              <span>사진 추가</span>
+              <input class="daily-journal-photo-input" type="file" accept="image/*" multiple data-journal-date="${attr(date)}">
+            </label>
+          </div>
+          <span class="save-hint">사진과 글은 오늘 일기에 함께 저장됩니다.</span>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTodaySharePanel(date, log) {
+    const format = shareFormatById(log.shareFormat);
+    const blocks = blocksForDate(date);
+    const memoCount = blocks.filter((block) => (block.memoText || "").trim()).length;
+    const photoCount = (log.photos || []).length + blocks.reduce((sum, block) => sum + (block.photos || []).length, 0);
+    return `
+      <section class="panel today-share-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">오늘 공유글 만들기</h2>
+            <p class="panel-subtitle">오늘 기록을 다른 사람에게 보여줄 수 있는 초안으로 정리합니다.</p>
+          </div>
+        </div>
+        <div class="panel-body today-share-box">
+          <div class="share-explain">
+            <strong>기능 설명</strong>
+            <p>오늘 일정, 체크박스, 메모, 일기, 사진 기록을 참고해 플랫폼별 공유글 초안을 만듭니다. 자동으로 게시하지 않으니 민감한 내용은 직접 확인하고 다듬은 뒤 복사해서 사용하세요.</p>
+          </div>
+          <div class="share-format-bar" aria-label="공유글 형식">
+            ${shareFormats.map((item) => `
+              <button type="button" class="share-format-btn ${item.id === format.id ? "is-active" : ""}" data-share-date="${attr(date)}" data-share-format="${attr(item.id)}">
+                <strong>${esc(item.label)}</strong>
+                <span>${esc(item.tone)}</span>
+              </button>
+            `).join("")}
+          </div>
+          <div class="share-source-strip" aria-label="초안에 참고되는 기록">
+            <span>일정 ${blocks.length}</span>
+            <span>체크 ${Array.isArray(log.checks) ? log.checks.length : 0}</span>
+            <span>메모 ${memoCount}</span>
+            <span>사진 ${photoCount}</span>
+          </div>
+          <div class="share-actions">
+            <button type="button" class="share-primary" data-generate-share-draft="${attr(date)}">오늘 공유글 만들기</button>
+            <button type="button" class="share-secondary" data-copy-share-draft="${attr(date)}">복사</button>
+          </div>
+          <textarea class="daily-share-draft" data-share-date="${attr(date)}" placeholder="버튼을 누르면 ${attr(format.label)} 형식의 공유글 초안이 여기에 만들어집니다. 만든 뒤 자유롭게 고쳐 쓸 수 있습니다.">${esc(log.shareDraft || "")}</textarea>
+          <span class="save-hint">초안은 오늘 기록에 저장됩니다. 형식을 바꾼 뒤 다시 만들기를 누르면 현재 기록 기준으로 새 초안이 만들어집니다.</span>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildTodayShareDraft(date, log, formatId) {
+    const format = shareFormatById(formatId);
+    const dayLabel = formatDate(date, { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+    const blocks = blocksForDate(date);
+    const actualBlocks = blocks.filter(blockHasActualLine);
+    const displayBlocks = actualBlocks.length ? actualBlocks : blocks;
+    const scheduleLines = displayBlocks.slice(0, 7).map((block) => shareScheduleLine(block));
+    const checkLines = (log.checks || [])
+      .filter((item) => (item.title || "").trim())
+      .slice(0, 6)
+      .map((item) => `- ${statusById(normalizeCheckStatus(item)).label}: ${plainLine(item.title)}`);
+    const memoLines = blocks
+      .filter((block) => (block.memoText || "").trim())
+      .slice(0, 4)
+      .map((block) => `- ${plainLine(block.actualText || block.title || "일정")}: ${plainLine(block.memoText)}`);
+    const journal = (log.text || "").trim();
+    const photoCount = (log.photos || []).length + blocks.reduce((sum, block) => sum + (block.photos || []).length, 0);
+    const photoLine = photoCount ? `사진 ${photoCount}장은 글에 어울리는 장면으로 골라 함께 붙여보세요.` : "";
+    const schedules = scheduleLines.length ? scheduleLines.join("\n") : "- 아직 공유할 일정 기록이 없습니다.";
+    const checks = checkLines.length ? checkLines.join("\n") : "- 아직 체크 기록이 없습니다.";
+    const memos = memoLines.length ? memoLines.join("\n") : "- 아직 일정 메모가 없습니다.";
+    const journalText = journal || "오늘을 지나며 기억하고 싶은 장면을 여기에 덧붙여보세요.";
+
+    if (format.id === "social") {
+      return [
+        `${dayLabel}`,
+        "",
+        journalText,
+        "",
+        "오늘의 흐름",
+        schedules,
+        "",
+        "기억할 것",
+        memoLines.length ? memos : checks,
+        photoLine,
+        "",
+        "#오늘기록 #일상기록 #라이프바인더 #시간관리"
+      ].filter(Boolean).join("\n");
+    }
+
+    if (format.id === "professional") {
+      return [
+        `오늘의 기록에서 남은 배움`,
+        "",
+        `${dayLabel}의 계획과 실행을 돌아보며, 오늘 남은 핵심은 다음과 같습니다.`,
+        "",
+        "1. 오늘 실행한 일",
+        schedules,
+        "",
+        "2. 확인한 것",
+        checks,
+        "",
+        "3. 다음에 이어갈 생각",
+        memos,
+        "",
+        journal ? `개인 메모: ${plainLine(journal)}` : "개인 메모: 오늘의 경험에서 배운 점을 한 문장으로 정리해보세요."
+      ].join("\n");
+    }
+
+    if (format.id === "newsletter") {
+      return [
+        `안녕하세요. ${dayLabel} 기록을 나눕니다.`,
+        "",
+        journalText,
+        "",
+        "오늘의 일정",
+        schedules,
+        "",
+        "오늘의 체크",
+        checks,
+        "",
+        "조금 더 남겨두고 싶은 메모",
+        memos,
+        "",
+        photoLine || "함께 보여주고 싶은 장면이 있다면 사진을 덧붙여도 좋겠습니다.",
+        "",
+        "읽어주셔서 고맙습니다."
+      ].join("\n");
+    }
+
+    return [
+      `${dayLabel}의 기록`,
+      "",
+      "오늘의 장면",
+      journalText,
+      "",
+      "오늘의 흐름",
+      schedules,
+      "",
+      "남겨둘 메모",
+      memos,
+      "",
+      "체크한 것",
+      checks,
+      "",
+      photoLine,
+      "",
+      "마무리",
+      "오늘의 기록에서 다른 사람과 나눌 만한 부분만 남기고, 사적인 내용은 덜어낸 뒤 발행해보세요."
+    ].filter(Boolean).join("\n");
+  }
+
+  function shareScheduleLine(block) {
+    const hasActual = blockHasActualLine(block);
+    const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
+    const start = hasActual ? (block.actualStart || block.start) : block.start;
+    const end = hasActual ? (block.actualEnd || block.end) : block.end;
+    const label = hasActual ? "실행" : "계획";
+    const title = plainLine(block.actualText || block.title || "일정");
+    return `- ${start}-${end} ${category.name} ${label}: ${title}`;
+  }
+
+  function plainLine(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function renderJournalPhoto(photo, idx, date) {
+    const source = typeof photo === "string" ? photo : photo.data;
+    const name = typeof photo === "string" ? `일기 사진 ${idx + 1}` : (photo.name || `일기 사진 ${idx + 1}`);
+    const caption = typeof photo === "string" ? "" : (photo.caption || "");
+    return `
+      <figure class="journal-photo-card">
+        <img src="${attr(source)}" alt="${attr(name)}">
+        ${caption ? `<figcaption>${esc(caption)}</figcaption>` : ""}
+        <button type="button" data-delete-journal-photo="${attr(date)}" data-photo-index="${idx}" title="사진 삭제">×</button>
+      </figure>
     `;
   }
 
@@ -1350,12 +1621,12 @@
     return `
       <div class="day-column ${isCurrent ? "is-current" : ""}">
         <div class="day-head">
-          <button class="day-head-select" data-select-date="${attr(day)}" title="이 날짜 열기">
-            <div class="day-head-main">
+          <div class="day-head-main">
+            <button class="day-head-select" data-select-date="${attr(day)}" title="이 날짜 열기">
               <span class="day-date-line">${esc(dayHeadLabel(day))}</span>
-              <span class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}">${mode === "actual" ? "Do" : "Plan"}</span>
-            </div>
-          </button>
+            </button>
+            <button type="button" class="day-mode-chip ${mode === "actual" ? "is-do" : "is-plan"}" data-toggle-week-mode title="Plan/Do 전환">${mode === "actual" ? "Do" : "Plan"}</button>
+          </div>
           <button type="button" class="day-copy-plan" data-copy-day-plan="${attr(day)}" title="이 날의 Plan을 다른 날짜로 복사">Plan 복사</button>
         </div>
         <div class="day-checks">
@@ -1429,13 +1700,13 @@
     const showPlanSummary = !isActual && mode === "actual" && isLinkedPair;
     const showActualSummary = isActual && mode === "plan";
     const summaryClass = showPlanSummary || showActualSummary ? "time-summary-segment" : "";
-    const actualAction = isActual && !isReadonly ? `data-edit-actual="${attr(block.id)}"` : "";
-    const planAction = mode === "plan"
+    const actualAction = !isToday && isActual && !isReadonly ? `data-edit-actual="${attr(block.id)}"` : "";
+    const planAction = !isToday && mode === "plan"
       ? `data-edit-plan="${attr(block.id)}"`
-      : mode === "actual" && isPlanSource
+      : !isToday && mode === "actual" && isPlanSource
         ? `data-copy-actual="${attr(block.id)}"`
         : "";
-    const todayAction = isToday && !(isActual ? actualAction : planAction) ? `data-select-today-block="${attr(block.id)}"` : "";
+    const todayAction = isToday ? `data-select-today-block="${attr(block.id)}"` : "";
     const selectedClass = isToday && block.id === selectedBlockId ? "is-selected" : "";
     const category = isActual
       ? categoryById(block.actualCategoryId || block.categoryId)
@@ -2169,6 +2440,43 @@
             </div>
           </div>
         </section>
+        <section class="panel sheet">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">카테고리 기준</h2>
+              <p class="panel-subtitle">일정을 입력할 때 어느 카테고리에 넣을지 빠르게 확인합니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            ${renderCategoryGuideTable()}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderCategoryGuideTable() {
+    const rows = [
+      ["주업무", "연구, 수업, 강의, 논문, 프로젝트 핵심 작업"],
+      ["보조업무", "행정, 정리, 이메일, 자료 준비, 회의 준비"],
+      ["개인업무", "은행, 병원, 예약, 개인 처리 일"],
+      ["가정", "아이들, 집안일, 가족 일정"],
+      ["신앙", "예배, 기도, 묵상, 공동체 활동"],
+      ["휴먼 네트워크", "만남, 연락, 관계 관리, 상담"],
+      ["자기개발/관리", "운동, 독서, 공부, 영어, 코딩, 식사, 수면, 휴식, 산책, 낮잠"]
+    ];
+    return `
+      <div class="category-guide-table" role="table" aria-label="카테고리 기준표">
+        <div class="category-guide-row category-guide-head" role="row">
+          <strong role="columnheader">카테고리</strong>
+          <strong role="columnheader">포함되는 일정</strong>
+        </div>
+        ${rows.map(([category, description]) => `
+          <div class="category-guide-row" role="row">
+            <span role="cell">${esc(category)}</span>
+            <p role="cell">${esc(description)}</p>
+          </div>
+        `).join("")}
       </div>
     `;
   }
@@ -2330,6 +2638,15 @@
       });
     });
 
+    app.querySelectorAll("[data-toggle-week-mode]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setState((draft) => {
+          draft.weekDrawMode = (draft.weekDrawMode || "plan") === "actual" ? "plan" : "actual";
+        });
+      });
+    });
+
     app.querySelectorAll(".dont-forget-input").forEach((input) => {
       input.addEventListener("change", () => {
         setState((draft) => {
@@ -2455,6 +2772,23 @@
       });
     });
 
+    app.querySelectorAll(".daily-journal-photo-input").forEach((input) => {
+      input.addEventListener("change", () => {
+        handleDailyJournalPhotoUpload(input);
+      });
+    });
+
+    app.querySelectorAll("[data-delete-journal-photo]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const date = button.dataset.deleteJournalPhoto;
+        const photoIndex = Number(button.dataset.photoIndex);
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, date);
+          log.photos.splice(photoIndex, 1);
+        });
+      });
+    });
+
     app.querySelectorAll("[data-open-cancel]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -2474,10 +2808,40 @@
       });
     });
 
+    app.querySelectorAll("[data-create-actual-detail]").forEach((button) => {
+      button.addEventListener("click", () => {
+        createActualFromPlan(button.dataset.createActualDetail);
+      });
+    });
+
     app.querySelectorAll("[data-copy-day-plan]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        copyDayPlan(button.dataset.copyDayPlan);
+        openPlanCopyPicker(button.dataset.copyDayPlan);
+      });
+    });
+
+    app.querySelectorAll("[data-close-plan-copy]").forEach((element) => {
+      element.addEventListener("click", () => closePlanCopyPicker());
+    });
+
+    app.querySelectorAll("[data-plan-copy-month-shift]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!planCopyPicker) return;
+        const scrollState = captureScrollState();
+        planCopyPicker = {
+          ...planCopyPicker,
+          month: monthStartISO(addMonths(planCopyPicker.month, Number(button.dataset.planCopyMonthShift)))
+        };
+        render();
+        restoreScrollState(scrollState);
+      });
+    });
+
+    app.querySelectorAll("[data-plan-copy-target]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!planCopyPicker) return;
+        copyDayPlanToDate(planCopyPicker.sourceDate, button.dataset.planCopyTarget);
       });
     });
 
@@ -2487,6 +2851,7 @@
           delete segment.dataset.dragged;
           return;
         }
+        if (shouldSuppressSegmentClick(segment.dataset.editPlan, "plan")) return;
         if (event.target.closest("input,label,.cancel-memo,[data-open-cancel]")) return;
         editPlanBlock(segment.dataset.editPlan, event);
       });
@@ -2498,6 +2863,7 @@
           delete segment.dataset.dragged;
           return;
         }
+        if (shouldSuppressSegmentClick(segment.dataset.editActual, "actual")) return;
         editActualBlock(segment.dataset.editActual, event);
       });
     });
@@ -2525,6 +2891,53 @@
           const log = ensureDailyLogMutable(draft, textarea.dataset.reviewDate);
           log.text = textarea.value.trim();
         });
+      });
+    });
+
+    app.querySelectorAll(".daily-journal").forEach((textarea) => {
+      textarea.addEventListener("change", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, textarea.dataset.journalDate);
+          log.text = textarea.value.trim();
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-share-format]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, button.dataset.shareDate);
+          log.shareFormat = shareFormatById(button.dataset.shareFormat).id;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-generate-share-draft]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const date = button.dataset.generateShareDraft;
+        const log = ensureDailyLog(date);
+        const format = shareFormatById(log.shareFormat).id;
+        const draftText = buildTodayShareDraft(date, log, format);
+        setState((draft) => {
+          const targetLog = ensureDailyLogMutable(draft, date);
+          targetLog.shareFormat = format;
+          targetLog.shareDraft = draftText;
+        });
+      });
+    });
+
+    app.querySelectorAll(".daily-share-draft").forEach((textarea) => {
+      textarea.addEventListener("change", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, textarea.dataset.shareDate);
+          log.shareDraft = textarea.value.trim();
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-copy-share-draft]").forEach((button) => {
+      button.addEventListener("click", () => {
+        copyShareDraft(button.dataset.copyShareDraft);
       });
     });
 
@@ -2614,6 +3027,8 @@
   }
 
   function openSchedulePopup(config) {
+    const scrollState = captureScrollState();
+    planCopyPicker = null;
     schedulePopup = {
       mode: config.mode,
       action: config.action,
@@ -2631,6 +3046,7 @@
     schedulePopup.x = position.x;
     schedulePopup.y = position.y;
     render();
+    restoreScrollState(scrollState);
     setTimeout(() => {
       const field = app.querySelector(".schedule-popover textarea");
       if (field) field.focus();
@@ -2641,23 +3057,35 @@
     const width = 560;
     const height = 580;
     const margin = 16;
-    const maxX = Math.max(margin, (window.innerWidth || width + margin * 2) - width - margin);
-    const maxY = Math.max(margin, (window.innerHeight || height + margin * 2) - height - margin);
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft || 0;
+    const viewportTop = viewport?.offsetTop || 0;
+    const viewportWidth = viewport?.width || window.innerWidth || width + margin * 2;
+    const viewportHeight = viewport?.height || window.innerHeight || height + margin * 2;
+    const bottomReserve = 96;
+    const maxX = Math.max(viewportLeft + margin, viewportLeft + viewportWidth - width - margin);
+    const maxY = Math.max(viewportTop + margin, viewportTop + viewportHeight - bottomReserve - height - margin);
     return {
-      x: Math.max(margin, Math.min(x + 12, maxX)),
-      y: Math.max(margin, Math.min(y + 12, maxY))
+      x: Math.max(viewportLeft + margin, Math.min(x + 12, maxX)),
+      y: Math.max(viewportTop + margin, Math.min(y + 12, maxY))
     };
   }
 
   function closeSchedulePopup() {
+    const scrollState = captureScrollState();
     schedulePopup = null;
     render();
+    restoreScrollState(scrollState);
   }
 
   function startEditDrag(event) {
     if (event.button !== 0) return;
     if (event.target.closest("input,button,label,.cancel-memo,[data-open-cancel]")) return;
     const segment = event.currentTarget;
+    if (segment.classList.contains("today-calendar-segment")) {
+      event.stopPropagation();
+      return;
+    }
     if (segment.classList.contains("is-readonly")) {
       event.stopPropagation();
       return;
@@ -2713,6 +3141,11 @@
     }
     if (drag.moved) {
       drag.segment.dataset.dragged = "true";
+      suppressSegmentClick = {
+        blockId: drag.blockId,
+        kind: drag.kind,
+        until: Date.now() + 900
+      };
       setState((draft) => {
         const target = draft.blocks.find((item) => item.id === drag.blockId);
         if (!target) return;
@@ -2731,8 +3164,21 @@
           target.end = end;
         }
       });
+      event.preventDefault();
+      event.stopPropagation();
     }
     editDragState = null;
+  }
+
+  function shouldSuppressSegmentClick(blockId, kind) {
+    if (!suppressSegmentClick) return false;
+    if (Date.now() > suppressSegmentClick.until) {
+      suppressSegmentClick = null;
+      return false;
+    }
+    const shouldSuppress = suppressSegmentClick.blockId === blockId && suppressSegmentClick.kind === kind;
+    if (shouldSuppress) suppressSegmentClick = null;
+    return shouldSuppress;
   }
 
   function cancelEditDrag() {
@@ -2800,6 +3246,61 @@
       .catch(() => {
         window.alert("첨부 파일을 불러오지 못했습니다.");
       });
+  }
+
+  function handleDailyJournalPhotoUpload(input) {
+    const date = input.dataset.journalDate || state.currentDate;
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+    Promise.all(files.slice(0, 8).map((file) => readFileAsDataUrl(file).then((data) => ({
+      name: file.name,
+      type: file.type,
+      data,
+      createdAt: new Date().toISOString()
+    }))))
+      .then((photos) => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, date);
+          log.photos = [...(log.photos || []), ...photos].slice(0, 24);
+        });
+      })
+      .catch(() => {
+        window.alert("일기 사진을 불러오지 못했습니다.");
+      });
+  }
+
+  function copyShareDraft(date) {
+    const log = ensureDailyLog(date);
+    const text = (log.shareDraft || buildTodayShareDraft(date, log, log.shareFormat)).trim();
+    if (!text) {
+      window.alert("복사할 공유글 초안이 없습니다.");
+      return;
+    }
+    copyTextToClipboard(text)
+      .then(() => window.alert("공유글 초안을 복사했습니다."))
+      .catch(() => window.alert("복사하지 못했습니다. 초안 내용을 직접 선택해서 복사해 주세요."));
+  }
+
+  function copyTextToClipboard(text) {
+    if (window.navigator?.clipboard?.writeText) {
+      return window.navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        ok ? resolve() : reject(new Error("copy command failed"));
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   function readFileAsDataUrl(file) {
@@ -2877,7 +3378,7 @@
     return bestOverlap > 0 ? best : null;
   }
 
-  function copyDayPlan(sourceDate) {
+  function openPlanCopyPicker(sourceDate) {
     const plans = state.blocks.filter((block) => {
       return block.date === sourceDate && !block.actualOnly && !block.cancelled;
     });
@@ -2885,14 +3386,37 @@
       window.alert("복사할 Plan 일정이 없습니다.");
       return;
     }
-    const defaultDate = addDays(sourceDate, 1);
-    const targetDate = window.prompt("Plan을 복사할 날짜를 YYYY-MM-DD 형식으로 입력하세요.", defaultDate);
-    if (targetDate === null) return;
-    const nextDate = targetDate.trim();
+    const scrollState = captureScrollState();
+    schedulePopup = null;
+    planCopyPicker = {
+      sourceDate,
+      month: monthStartISO(sourceDate)
+    };
+    render();
+    restoreScrollState(scrollState);
+  }
+
+  function closePlanCopyPicker() {
+    const scrollState = captureScrollState();
+    planCopyPicker = null;
+    render();
+    restoreScrollState(scrollState);
+  }
+
+  function copyDayPlanToDate(sourceDate, targetDate) {
+    const nextDate = String(targetDate || "").trim();
     if (!isValidISODate(nextDate)) {
       window.alert("날짜 형식이 올바르지 않습니다. 예: 2026-05-01");
       return;
     }
+    const plans = state.blocks.filter((block) => {
+      return block.date === sourceDate && !block.actualOnly && !block.cancelled;
+    });
+    if (!plans.length) {
+      window.alert("복사할 Plan 일정이 없습니다.");
+      return;
+    }
+    planCopyPicker = null;
     setState((draft) => {
       plans.forEach((block) => {
         draft.blocks.push({
@@ -3005,6 +3529,7 @@
       block.actualCategoryId = block.actualCategoryId || block.categoryId;
       block.actualDone = true;
       draft.currentDate = block.date || draft.currentDate;
+      draft.todayDetailBlockId = block.id;
     });
   }
 
@@ -3280,13 +3805,16 @@
     return {
       top: Array.isArray(existing?.top) ? existing.top : ["", "", ""],
       text: existing?.text || "",
-      checks: Array.isArray(existing?.checks) ? existing.checks.map(normalizeDailyCheck) : []
+      checks: Array.isArray(existing?.checks) ? existing.checks.map(normalizeDailyCheck) : [],
+      photos: Array.isArray(existing?.photos) ? existing.photos : [],
+      shareDraft: existing?.shareDraft || "",
+      shareFormat: shareFormatById(existing?.shareFormat).id
     };
   }
 
   function ensureDailyLogMutable(draft, date) {
     if (!draft.reviews.daily[date]) {
-      draft.reviews.daily[date] = { top: ["", "", ""], text: "", checks: [] };
+      draft.reviews.daily[date] = { top: ["", "", ""], text: "", checks: [], photos: [], shareDraft: "", shareFormat: "essay" };
     }
     if (!Array.isArray(draft.reviews.daily[date].top)) {
       draft.reviews.daily[date].top = ["", "", ""];
@@ -3294,6 +3822,11 @@
     if (!Array.isArray(draft.reviews.daily[date].checks)) {
       draft.reviews.daily[date].checks = [];
     }
+    if (!Array.isArray(draft.reviews.daily[date].photos)) {
+      draft.reviews.daily[date].photos = [];
+    }
+    draft.reviews.daily[date].shareDraft = draft.reviews.daily[date].shareDraft || "";
+    draft.reviews.daily[date].shareFormat = shareFormatById(draft.reviews.daily[date].shareFormat).id;
     draft.reviews.daily[date].checks = draft.reviews.daily[date].checks.map(normalizeDailyCheck);
     return draft.reviews.daily[date];
   }
