@@ -158,6 +158,14 @@
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }
 
+  function formatClock(time) {
+    return timeFromMinutes(minutesFromTime(normalizeTimeInput(time, "00:00")));
+  }
+
+  function formatTimeRange(start, end) {
+    return `${formatClock(start)}-${formatClock(end)}`;
+  }
+
   function snapMinutes(minutes) {
     return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
   }
@@ -187,6 +195,22 @@
 
   function multiline(value) {
     return esc(value).replace(/\r\n|\r|\n/g, "<br>");
+  }
+
+  function richMultiline(value) {
+    return esc(value)
+      .replace(/~~(.+?)~~/g, "<s>$1</s>")
+      .replace(/\r\n|\r|\n/g, "<br>");
+  }
+
+  function autoGrowTextarea(textarea) {
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }
+
+  function bindAutoGrowTextarea(textarea) {
+    autoGrowTextarea(textarea);
+    textarea.addEventListener("input", () => autoGrowTextarea(textarea));
   }
 
   function isValidISODate(value) {
@@ -913,6 +937,9 @@
     const value = schedulePopup.title || "";
     const categoryId = normalizeCategoryId(schedulePopup.categoryId);
     const categoryLocked = Boolean(schedulePopup.lockCategory);
+    const titleTools = schedulePopup.mode === "actual"
+      ? `<button type="button" class="strike-text-btn" data-strike-selection title="선택한 글씨 취소선" aria-label="선택한 글씨 취소선"><s>S</s></button>`
+      : "";
     return `
       <div class="popup-backdrop" data-close-schedule-popup></div>
       <form class="schedule-popover" data-form="schedule-popup" style="left:${schedulePopup.x}px; top:${schedulePopup.y}px;">
@@ -923,18 +950,21 @@
           </div>
           <button type="button" data-close-schedule-popup title="닫기">×</button>
         </div>
-        <label class="popover-title-field">
-          <span>내용</span>
-          <textarea name="title" required autofocus placeholder="무엇을 할까요?">${esc(value)}</textarea>
-        </label>
+        <div class="popover-title-field">
+          <div class="popover-title-row">
+            <label for="schedule-title-input">내용</label>
+            ${titleTools}
+          </div>
+          <textarea id="schedule-title-input" name="title" required autofocus placeholder="무엇을 할까요?">${esc(value)}</textarea>
+        </div>
         <div class="popover-time-grid">
           <label>
             <span>시작 시간</span>
-            <input type="time" name="start" value="${attr(schedulePopup.start)}" step="900" required>
+            <input type="text" name="start" value="${attr(formatClock(schedulePopup.start))}" inputmode="numeric" pattern="(?:[01][0-9]|2[0-4]):[0-5][0-9]" placeholder="09:00" required>
           </label>
           <label>
             <span>끝 시간</span>
-            <input type="time" name="end" value="${attr(schedulePopup.end)}" step="900" required>
+            <input type="text" name="end" value="${attr(formatClock(schedulePopup.end))}" inputmode="numeric" pattern="(?:[01][0-9]|2[0-4]):[0-5][0-9]" placeholder="10:00" required>
           </label>
         </div>
         <div class="popover-categories ${categoryLocked ? "is-locked" : ""}" role="group" aria-label="일정 분류">
@@ -1086,16 +1116,16 @@
     const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
     const displayTitle = block.actualText || block.title;
     const displayTime = hasActual
-      ? `${block.actualStart || block.start}-${block.actualEnd || block.end}`
-      : `${block.start}-${block.end}`;
+      ? formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end)
+      : formatTimeRange(block.start, block.end);
     return `
       <button type="button" class="today-schedule-card today-schedule-select ${selected ? "is-selected" : ""} ${blockHasLinkedNote(block) ? "has-note" : ""}" data-select-today-block="${attr(block.id)}" style="border-left-color:${attr(category.color)}">
         <div class="today-card-head">
           <span>${esc(category.name)}</span>
           <strong>${esc(displayTime)}</strong>
         </div>
-        <strong class="today-schedule-title">${multiline(displayTitle || "일정")}</strong>
-        <span class="today-schedule-meta">${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
+        <strong class="today-schedule-title">${hasActual ? richMultiline(displayTitle || "일정") : multiline(displayTitle || "일정")}</strong>
+        <span class="today-schedule-meta">${hasPlan ? `계획 ${esc(formatTimeRange(block.start, block.end))}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end))}` : ""}</span>
       </button>
     `;
   }
@@ -1158,8 +1188,8 @@
         <div class="panel-body">
           <div class="today-detail-top">
             <div class="today-detail-summary" style="border-left-color:${attr(category.color)}">
-              <strong>${multiline(block.actualText || block.title || "일정")}</strong>
-              <span>${hasPlan ? `계획 ${esc(block.start)}-${esc(block.end)}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}` : ""}</span>
+              <strong>${hasActual ? richMultiline(block.actualText || block.title || "일정") : multiline(block.actualText || block.title || "일정")}</strong>
+              <span>${hasPlan ? `계획 ${esc(formatTimeRange(block.start, block.end))}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end))}` : ""}</span>
               <div class="today-detail-actions">
                 ${hasPlan ? `<button type="button" class="text-btn" data-edit-plan="${attr(block.id)}">계획 수정</button>` : ""}
                 ${hasActual
@@ -1405,7 +1435,7 @@
     const end = hasActual ? (block.actualEnd || block.end) : block.end;
     const label = hasActual ? "실행" : "계획";
     const title = plainLine(block.actualText || block.title || "일정");
-    return `- ${start}-${end} ${category.name} ${label}: ${title}`;
+    return `- ${formatTimeRange(start, end)} ${category.name} ${label}: ${title}`;
   }
 
   function plainLine(value) {
@@ -1564,7 +1594,7 @@
       .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     const workTasks = weekTasks.filter((task) => (task.scope || "work") === "work");
     const personalTasks = weekTasks.filter((task) => (task.scope || "work") === "personal");
-    const stats = categoryStats(weekBlocks.filter((block) => !block.actualOnly && !block.cancelled));
+    const stats = categoryPlanActualStats(weekBlocks);
     const review = ensureWeeklyReview(start);
     return `
       <div class="full-grid">
@@ -1589,11 +1619,11 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">이번 주 시간 배분</h2>
-                <p class="panel-subtitle">카테고리별 계획 시간을 합산합니다.</p>
+                <p class="panel-subtitle">카테고리별 계획과 수행 시간을 함께 봅니다.</p>
               </div>
             </div>
             <div class="panel-body">
-              ${renderStatsBars(stats)}
+              ${renderPlanActualStats(stats)}
             </div>
           </section>
           <section class="panel">
@@ -1648,7 +1678,7 @@
   function renderTimeAxis() {
     const rows = [];
     for (let hour = DAY_START_HOUR; hour < DAY_END_HOUR; hour += 1) {
-      rows.push(`<span>${String(hour).padStart(2, "0")}</span>`);
+      rows.push(`<span>${String(hour).padStart(2, "0")}:00</span>`);
     }
     return rows.join("");
   }
@@ -1665,7 +1695,7 @@
       <div class="time-segment plan-segment ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}" style="top:${top}%; height:${height}%; --segment-color:${attr(category.color)}; border-left-color:${attr(category.color)}">
         <div class="segment-head">
           <strong class="segment-title">${multiline(block.title)}</strong>
-          <span class="segment-time">${esc(block.start)}-${esc(block.end)}</span>
+          <span class="segment-time">${esc(formatTimeRange(block.start, block.end))}</span>
         </div>
         ${block.cancelled ? `<button class="cancel-memo" data-open-cancel="${attr(block.id)}" title="취소 메모 보기">취소: ${esc(shortText(block.cancelMemo || "메모 없음", 18))}</button>` : ""}
       </div>
@@ -1723,8 +1753,8 @@
           <span class="segment-resize-handle top" data-resize-edge="start" title="시작 시간 조정"></span>
           <div class="segment-head ${showActualSummary ? "plan-time-stack" : ""}">
             ${showActualSummary
-              ? `<strong>${esc(segment.start)}</strong><span>${esc(segment.end)}</span>`
-              : `<strong class="segment-title">${multiline(block.actualText || block.title || "실행 내용")}</strong><span class="segment-time">${esc(segment.start)}-${esc(segment.end)}</span>`}
+              ? `<strong>${esc(formatClock(segment.start))}</strong><span>${esc(formatClock(segment.end))}</span>`
+              : `<strong class="segment-title">${richMultiline(block.actualText || block.title || "실행 내용")}</strong><span class="segment-time">${esc(formatTimeRange(segment.start, segment.end))}</span>`}
           </div>
           <span class="segment-resize-handle bottom" data-resize-edge="end" title="종료 시간 조정"></span>
         </div>
@@ -1735,8 +1765,8 @@
         <span class="segment-resize-handle top" data-resize-edge="start" title="시작 시간 조정"></span>
         <div class="segment-head ${showPlanSummary ? "plan-time-stack" : ""}">
           ${showPlanSummary
-            ? `<strong>${esc(block.start)}</strong><span>${esc(block.end)}</span>`
-            : `<strong class="segment-title">${multiline(block.title)}</strong><span class="segment-time">계획 ${esc(block.start)}-${esc(block.end)}</span>`}
+            ? `<strong>${esc(formatClock(block.start))}</strong><span>${esc(formatClock(block.end))}</span>`
+            : `<strong class="segment-title">${multiline(block.title)}</strong><span class="segment-time">계획 ${esc(formatTimeRange(block.start, block.end))}</span>`}
         </div>
         ${block.cancelled ? `<button class="cancel-memo" data-open-cancel="${attr(block.id)}" title="취소 메모 보기">취소: ${esc(shortText(block.cancelMemo || "메모 없음", 18))}</button>` : ""}
         <span class="segment-resize-handle bottom" data-resize-edge="end" title="종료 시간 조정"></span>
@@ -1808,13 +1838,22 @@
       } else if (mode === "plan") {
         const primaryItems = planItems;
         const actualSummaries = actualItems;
-        if (primaryItems.length && actualSummaries.length) {
-          assignSegmentColumns(primaryItems, 0, 90);
-          assignSegmentColumns(actualSummaries, 78, 22);
-        } else if (actualSummaries.length) {
-          assignSegmentColumns(actualSummaries, 78, 22);
-        } else {
+        if (primaryItems.length) {
           assignSegmentColumns(primaryItems, 0, 100);
+        }
+        const unmatchedActualSummaries = [];
+        actualSummaries.forEach((item) => {
+          const matchingPlan = primaryItems.find((plan) => plan.block.id === item.block.id);
+          if (matchingPlan) {
+            item.columnIndex = matchingPlan.columnIndex || 0;
+            item.left = matchingPlan.left;
+            item.width = matchingPlan.width;
+          } else {
+            unmatchedActualSummaries.push(item);
+          }
+        });
+        if (unmatchedActualSummaries.length) {
+          assignSegmentColumns(unmatchedActualSummaries, 0, 100);
         }
       } else {
         assignSegmentColumns(group.items, 0, 100);
@@ -1849,8 +1888,8 @@
     return `
       <div class="time-segment actual-segment" data-edit-actual="${attr(block.id)}" style="top:${top}%; height:${height}%">
         <div class="segment-head">
-          <strong class="segment-title">${multiline(block.actualText || "실행 내용")}</strong>
-          <span class="segment-time">${esc(block.actualStart || block.start)}-${esc(block.actualEnd || block.end)}</span>
+          <strong class="segment-title">${richMultiline(block.actualText || "실행 내용")}</strong>
+          <span class="segment-time">${esc(formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end))}</span>
         </div>
       </div>
     `;
@@ -2001,38 +2040,20 @@
     const weekDays = Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
     const weekEnd = weekDays[6];
     const weekBlocks = state.blocks.filter((block) => block.date >= weekStart && block.date <= weekEnd);
-    const weekChecks = weekDays.flatMap((day) => ensureDailyLog(day).checks || []);
-    const doneChecks = weekChecks.filter(checkIsDone).length;
-    const planMinutes = weekBlocks
-      .filter((block) => !block.actualOnly && !block.cancelled)
-      .reduce((sum, block) => sum + Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start)), 0);
-    const doMinutes = weekBlocks
-      .filter(blockHasActualLine)
-      .reduce((sum, block) => sum + Math.max(0, minutesFromTime(block.actualEnd || block.end) - minutesFromTime(block.actualStart || block.start)), 0);
-    const categoryMinutes = categories.map((category) => {
-      const minutes = weekBlocks
-        .filter((block) => block.categoryId === category.id || block.actualCategoryId === category.id)
-        .reduce((sum, block) => {
-          const planned = !block.actualOnly && !block.cancelled && block.categoryId === category.id
-            ? Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start))
-            : 0;
-          const actual = blockHasActualLine(block) && (block.actualCategoryId || block.categoryId) === category.id
-            ? Math.max(0, minutesFromTime(block.actualEnd || block.end) - minutesFromTime(block.actualStart || block.start))
-            : 0;
-          return sum + planned + actual;
-        }, 0);
-      return { category, minutes };
-    }).filter((item) => item.minutes > 0).sort((a, b) => b.minutes - a.minutes);
-    const mainCategory = categoryMinutes[0]?.category || null;
+    const categoryMinutes = categoryPlanActualStats(weekBlocks)
+      .filter((item) => item.planned > 0 || item.actual > 0)
+      .sort((a, b) => b.total - a.total);
     const title = `${esc(formatDate(weekStart, { month: "numeric", day: "numeric" }))} - ${esc(formatDate(weekEnd, { month: "numeric", day: "numeric" }))}`;
-    const summary = `Plan ${minutesToShortText(planMinutes)} · Do ${minutesToShortText(doMinutes)} · 체크 ${doneChecks}/${weekChecks.length}`;
     return `
       <button type="button" class="month-week-summary" data-select-date="${attr(weekStart)}">
         <span class="month-week-range">${title}</span>
-        <strong>${mainCategory ? esc(mainCategory.name) : "기록 없음"}</strong>
-        <p>${esc(summary)}</p>
-        <div class="month-week-tags">
-          ${categoryMinutes.slice(0, 3).map(({ category, minutes }) => `<i style="--summary-color:${attr(category.color)}">${esc(category.name)} ${esc(minutesToShortText(minutes))}</i>`).join("") || `<em>아직 배분 없음</em>`}
+        <div class="month-week-mini-stats">
+          ${categoryMinutes.slice(0, 5).map((item) => `
+            <span class="month-week-mini-stat" style="--summary-color:${attr(item.color)}" title="${attr(`${item.name} 계획 ${minutesToShortText(item.planned)} 수행 ${minutesToShortText(item.actual)}`)}">
+              <i><span>계획</span><b>${esc(minutesToShortText(item.planned))}</b></i>
+              <i><span>수행</span><b>${esc(minutesToShortText(item.actual))}</b></i>
+            </span>
+          `).join("") || `<em>아직 배분 없음</em>`}
         </div>
       </button>
     `;
@@ -2505,6 +2526,33 @@
     `).join("");
   }
 
+  function renderPlanActualStats(stats) {
+    const visible = stats.filter((item) => item.planned > 0 || item.actual > 0);
+    const max = Math.max(...visible.flatMap((item) => [item.planned, item.actual]), 1);
+    if (!visible.length) return `<div class="empty">아직 이번 주 시간 블록이 없습니다.</div>`;
+    return `
+      <div class="dual-stat-list">
+        ${visible.map((item) => `
+          <div class="dual-stat-row" style="--stat-color:${attr(item.color)}">
+            <div class="dual-stat-label"><span class="status-dot" style="background:${attr(item.color)}"></span>${esc(item.name)}</div>
+            <div class="dual-stat-lines">
+              <div class="dual-stat-line">
+                <span class="dual-stat-kind">계획</span>
+                <div class="stat-bar"><span style="width:${Math.round((item.planned / max) * 100)}%; background:${attr(item.color)}"></span></div>
+                <strong>${esc(minutesToShortText(item.planned))}</strong>
+              </div>
+              <div class="dual-stat-line is-actual">
+                <span class="dual-stat-kind">수행</span>
+                <div class="stat-bar"><span style="width:${Math.round((item.actual / max) * 100)}%; background:${attr(item.color)}"></span></div>
+                <strong>${esc(minutesToShortText(item.actual))}</strong>
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
   function renderGoalStats(stats) {
     const max = Math.max(...stats.map((item) => item.minutes), 1);
     const visible = stats.filter((item) => item.minutes > 0);
@@ -2520,6 +2568,8 @@
 
   function bindEvents() {
     setupWeekTopScroll();
+
+    app.querySelectorAll(".block-memo, .daily-journal, .daily-review, .daily-share-draft").forEach(bindAutoGrowTextarea);
 
     app.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -2615,6 +2665,26 @@
     app.querySelectorAll("[data-delete-schedule-popup]").forEach((button) => {
       button.addEventListener("click", () => {
         deleteSchedulePopupTarget();
+      });
+    });
+
+    app.querySelectorAll("[data-strike-selection]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const textarea = button.closest(".schedule-popover")?.querySelector('textarea[name="title"]');
+        if (!textarea) return;
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? start;
+        const selected = textarea.value.slice(start, end);
+        const replacement = selected && selected.startsWith("~~") && selected.endsWith("~~")
+          ? selected.slice(2, -2)
+          : `~~${selected || ""}~~`;
+        textarea.setRangeText(replacement, start, end, selected ? "select" : "end");
+        if (!selected) {
+          textarea.selectionStart = start + 2;
+          textarea.selectionEnd = start + 2;
+        }
+        textarea.focus();
+        autoGrowTextarea(textarea);
       });
     });
 
@@ -3863,6 +3933,22 @@
     return categories.map((category) => {
       const minutes = totalMinutes(blocks.filter((block) => block.categoryId === category.id));
       return { ...category, minutes };
+    });
+  }
+
+  function categoryPlanActualStats(blocks) {
+    return categories.map((category) => {
+      let planned = 0;
+      let actual = 0;
+      blocks.forEach((block) => {
+        if (!block.actualOnly && !block.cancelled && block.categoryId === category.id) {
+          planned += Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start));
+        }
+        if (blockHasActualLine(block) && (block.actualCategoryId || block.categoryId) === category.id) {
+          actual += Math.max(0, minutesFromTime(block.actualEnd || block.end) - minutesFromTime(block.actualStart || block.start));
+        }
+      });
+      return { ...category, planned, actual, total: planned + actual };
     });
   }
 
