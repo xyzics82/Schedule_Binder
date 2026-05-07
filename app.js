@@ -2040,22 +2040,44 @@
     const weekDays = Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
     const weekEnd = weekDays[6];
     const weekBlocks = state.blocks.filter((block) => block.date >= weekStart && block.date <= weekEnd);
-    const categoryMinutes = categoryPlanActualStats(weekBlocks)
-      .filter((item) => item.planned > 0 || item.actual > 0)
-      .sort((a, b) => b.total - a.total);
-    const title = `${esc(formatDate(weekStart, { month: "numeric", day: "numeric" }))} - ${esc(formatDate(weekEnd, { month: "numeric", day: "numeric" }))}`;
+    const categoryMinutes = categoryPlanActualStats(weekBlocks);
+    const title = `${formatDate(weekStart, { month: "numeric", day: "numeric" })} - ${formatDate(weekEnd, { month: "numeric", day: "numeric" })}`;
     return `
-      <button type="button" class="month-week-summary" data-select-date="${attr(weekStart)}">
-        <span class="month-week-range">${title}</span>
-        <div class="month-week-mini-stats">
-          ${categoryMinutes.slice(0, 5).map((item) => `
-            <span class="month-week-mini-stat" style="--summary-color:${attr(item.color)}" title="${attr(`${item.name} 계획 ${minutesToShortText(item.planned)} 수행 ${minutesToShortText(item.actual)}`)}">
-              <i><span>계획</span><b>${esc(minutesToShortText(item.planned))}</b></i>
-              <i><span>수행</span><b>${esc(minutesToShortText(item.actual))}</b></i>
-            </span>
-          `).join("") || `<em>아직 배분 없음</em>`}
-        </div>
+      <button type="button" class="month-week-summary" data-select-date="${attr(weekStart)}" title="${attr(`${title} 주간 요약`)}">
+        ${renderMonthPlanActualStats(categoryMinutes)}
       </button>
+    `;
+  }
+
+  function renderMonthPlanActualStats(stats) {
+    const visible = stats.slice(0, 5);
+    const max = Math.max(...visible.flatMap((item) => [item.planned, item.actual]), 1);
+    const valueText = (minutes) => minutes > 0 ? minutesToShortText(minutes) : "0";
+    const widthPercent = (minutes) => minutes > 0 ? Math.max(4, Math.round((minutes / max) * 100)) : 0;
+    return `
+      <div class="month-summary-stat-list">
+        ${visible.map((item) => `
+          <div class="month-summary-stat" style="--stat-color:${attr(item.color)}" title="${attr(`${item.name} 계획 ${minutesToShortText(item.planned)} 수행 ${minutesToShortText(item.actual)}`)}">
+            <svg class="month-summary-color" aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" style="color:${attr(item.color)}"><circle cx="5" cy="5" r="5" fill="currentColor"></circle></svg>
+            <div class="month-summary-bars">
+              <span class="month-summary-line is-plan">
+                <svg class="month-summary-line-graph" aria-hidden="true" viewBox="0 0 100 1" preserveAspectRatio="none">
+                  <line x1="0" y1="0.5" x2="100" y2="0.5"></line>
+                  <line class="is-value" x1="0" y1="0.5" x2="${widthPercent(item.planned)}" y2="0.5"></line>
+                </svg>
+                <b>${esc(valueText(item.planned))}</b>
+              </span>
+              <span class="month-summary-line is-actual">
+                <svg class="month-summary-line-graph" aria-hidden="true" viewBox="0 0 100 1" preserveAspectRatio="none">
+                  <line x1="0" y1="0.5" x2="100" y2="0.5"></line>
+                  <line class="is-value" x1="0" y1="0.5" x2="${widthPercent(item.actual)}" y2="0.5"></line>
+                </svg>
+                <b>${esc(valueText(item.actual))}</b>
+              </span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -2526,23 +2548,24 @@
     `).join("");
   }
 
-  function renderPlanActualStats(stats) {
-    const visible = stats.filter((item) => item.planned > 0 || item.actual > 0);
+  function renderPlanActualStats(stats, options = {}) {
+    const base = options.includeZero ? stats : stats.filter((item) => item.planned > 0 || item.actual > 0);
+    const visible = base.slice(0, options.limit || base.length);
     const max = Math.max(...visible.flatMap((item) => [item.planned, item.actual]), 1);
-    if (!visible.length) return `<div class="empty">아직 이번 주 시간 블록이 없습니다.</div>`;
+    if (!visible.length) return `<div class="empty">${esc(options.emptyText || "아직 이번 주 시간 블록이 없습니다.")}</div>`;
     return `
-      <div class="dual-stat-list">
+      <div class="dual-stat-list ${options.compact ? "is-compact" : ""} ${options.hideKinds ? "is-kind-hidden" : ""}">
         ${visible.map((item) => `
-          <div class="dual-stat-row" style="--stat-color:${attr(item.color)}">
-            <div class="dual-stat-label"><span class="status-dot" style="background:${attr(item.color)}"></span>${esc(item.name)}</div>
+          <div class="dual-stat-row ${options.hideLabels ? "is-label-hidden" : ""}" style="--stat-color:${attr(item.color)}" title="${attr(`${item.name} 계획 ${minutesToShortText(item.planned)} 수행 ${minutesToShortText(item.actual)}`)}">
+            <div class="dual-stat-label ${options.hideLabels ? "is-color-only" : ""}"><span class="status-dot" style="background:${attr(item.color)}"></span>${options.hideLabels ? "" : esc(item.name)}</div>
             <div class="dual-stat-lines">
               <div class="dual-stat-line">
-                <span class="dual-stat-kind">계획</span>
+                ${options.hideKinds ? "" : `<span class="dual-stat-kind">계획</span>`}
                 <div class="stat-bar"><span style="width:${Math.round((item.planned / max) * 100)}%; background:${attr(item.color)}"></span></div>
                 <strong>${esc(minutesToShortText(item.planned))}</strong>
               </div>
               <div class="dual-stat-line is-actual">
-                <span class="dual-stat-kind">수행</span>
+                ${options.hideKinds ? "" : `<span class="dual-stat-kind">수행</span>`}
                 <div class="stat-bar"><span style="width:${Math.round((item.actual / max) * 100)}%; background:${attr(item.color)}"></span></div>
                 <strong>${esc(minutesToShortText(item.actual))}</strong>
               </div>
