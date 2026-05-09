@@ -591,11 +591,11 @@ button {
 }
 
 .list-row.is-done {
-  opacity: 0.62;
+  opacity: 1;
 }
 
 .list-row.is-done .row-title {
-  text-decoration: line-through;
+  text-decoration: none;
 }
 
 .status-select {
@@ -917,8 +917,8 @@ button {
 }
 
 .day-check.is-done {
-  opacity: 0.62;
-  text-decoration: line-through;
+  opacity: 1;
+  text-decoration: none;
 }
 
 .day-empty {
@@ -1869,7 +1869,7 @@ button {
 }
 
 .paper-todo label.is-done {
-  opacity: 0.58;
+  opacity: 1;
 }
 
 .paper-todo em {
@@ -2968,7 +2968,7 @@ body {
 
 .list-row.is-done .task-title-input,
 .list-row.is-done .daily-check-title {
-  text-decoration: line-through;
+  text-decoration: none;
 }
 
 @media (max-width: 760px) {
@@ -3381,12 +3381,12 @@ body {
 }
 
 .month-grid {
-  grid-auto-rows: minmax(132px, 1fr);
+  grid-auto-rows: var(--month-week-row-height, 140px);
 }
 
 .month-cell {
   aspect-ratio: 1 / 0.82;
-  min-height: 132px;
+  min-height: var(--month-week-row-height, 140px);
 }
 
 .month-week-summaries {
@@ -3451,8 +3451,8 @@ body {
 }
 
 .month-checks span.is-done {
-  opacity: 0.56;
-  text-decoration: line-through;
+  opacity: 1;
+  text-decoration: none;
 }
 
 .month-checks span.is-status-progress {
@@ -5830,6 +5830,7 @@ button.status-toggle,
 
 .month-board {
   min-width: 1120px;
+  --month-week-row-height: 140px;
   display: grid;
   grid-template-columns: 230px minmax(860px, 1fr);
   gap: 12px;
@@ -5843,7 +5844,7 @@ button.status-toggle,
 .month-week-summaries {
   display: grid !important;
   grid-template-columns: 1fr !important;
-  grid-template-rows: 40px repeat(6, minmax(108px, 1fr));
+  grid-template-rows: 40px repeat(6, var(--month-week-row-height));
   gap: 8px !important;
 }
 
@@ -5868,15 +5869,21 @@ button.status-toggle,
 }
 
 .month-week-summary {
-  min-height: 108px !important;
+  min-height: 0 !important;
+  height: var(--month-week-row-height) !important;
   display: grid !important;
-  align-content: start !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  align-content: stretch !important;
+  align-items: stretch !important;
+  justify-items: stretch !important;
   gap: 6px !important;
-  padding: 9px !important;
+  padding: 4px !important;
   border: 1px solid var(--line) !important;
   border-radius: 8px !important;
   background: rgba(0, 43, 54, 0.46) !important;
   color: var(--ink) !important;
+  overflow: hidden !important;
   text-align: left !important;
   cursor: pointer;
 }
@@ -5888,12 +5895,6 @@ button.status-toggle,
 
 .month-week-summary.is-muted {
   opacity: 0.48;
-}
-
-.month-week-range {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 850;
 }
 
 .month-week-summary strong {
@@ -5910,30 +5911,11 @@ button.status-toggle,
   line-height: 1.25;
 }
 
-.month-week-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.month-week-tags i,
-.month-week-tags em {
-  padding: 3px 6px;
-  border: 1px solid color-mix(in srgb, var(--summary-color, var(--line-strong)) 62%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--summary-color, var(--panel-soft)) 18%, var(--base03));
-  color: var(--ink);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 850;
-  line-height: 1.1;
-}
-
 .month-grid {
   display: grid !important;
   grid-template-columns: repeat(7, minmax(118px, 1fr)) !important;
-  grid-template-rows: 40px repeat(6, minmax(108px, 1fr)) !important;
-  grid-auto-rows: minmax(108px, 1fr) !important;
+  grid-template-rows: 40px repeat(6, var(--month-week-row-height)) !important;
+  grid-auto-rows: var(--month-week-row-height) !important;
   gap: 8px !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -5941,7 +5923,8 @@ button.status-toggle,
 }
 
 .month-cell {
-  min-height: 108px !important;
+  min-height: 0 !important;
+  height: var(--month-week-row-height) !important;
   aspect-ratio: auto !important;
   display: grid !important;
   align-content: start !important;
@@ -6027,8 +6010,8 @@ button.status-toggle,
 }
 
 .month-check-chip.is-done {
-  opacity: 0.58;
-  text-decoration: line-through;
+  opacity: 1;
+  text-decoration: none;
 }
 
 .month-check-icon.status-toggle {
@@ -7644,4 +7627,92 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
   text-align: right;
   white-space: nowrap;
+}
+
+/* 2026-05-09 readability pass: keep sidebar readable and make category choices color-forward. */
+.app-shell {
+  grid-template-columns: minmax(168px, 210px) minmax(0, 1fr) !important;
+}
+
+.sidebar {
+  min-width: 168px !important;
+}
+
+.sidebar .brand-title,
+.brand-title {
+  font-size: 22px !important;
+  line-height: 1.08 !important;
+}
+
+.sidebar .brand-subtitle,
+.brand-subtitle {
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+}
+
+.nav-btn {
+  grid-template-columns: 32px minmax(0, 1fr) !important;
+  min-height: 42px !important;
+  padding: 8px 9px !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+
+.nav-label {
+  display: inline !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 15px !important;
+}
+
+.popover-categories label {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--category-color) 82%, var(--base03)) !important;
+  background: color-mix(in srgb, var(--category-color) 74%, var(--base03)) !important;
+  color: #002b36 !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 22%, transparent);
+}
+
+.popover-categories label span:not(.category-swatch) {
+  color: #002b36 !important;
+  font-weight: 950;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.popover-categories label:has(input:checked) {
+  border-color: color-mix(in srgb, var(--category-color) 76%, #ffffff) !important;
+  background: var(--category-color) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.48),
+    0 0 0 2px color-mix(in srgb, var(--category-color) 38%, transparent) !important;
+}
+
+.popover-categories label:has(input:checked) span:not(.category-swatch) {
+  color: #002b36 !important;
+  text-shadow: none !important;
+}
+
+.popover-categories .category-swatch {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sidebar {
+    min-width: 0 !important;
+  }
+
+  .nav-btn {
+    min-width: 88px !important;
+  }
 }
