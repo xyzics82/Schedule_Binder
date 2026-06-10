@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  // build: 20260610-gcal-mobile-1
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -50,7 +51,8 @@
     { id: "binder", label: "서브 바인더", icon: "B" },
     { id: "review", label: "리뷰", icon: "R" },
     { id: "stats", label: "통계", icon: "S" },
-    { id: "guide", label: "가이드", icon: "?" }
+    { id: "guide", label: "가이드", icon: "?" },
+    { id: "settings", label: "설정", icon: "⚙" }
   ];
 
   let state = loadState();
@@ -512,6 +514,7 @@
       authMessage = "";
       authError = "";
       render();
+      gcalInit();
     } catch (error) {
       console.warn("Stored login expired.", error);
       clearAuthSession();
@@ -533,7 +536,8 @@
       notes: Array.isArray(next.notes) ? next.notes : [],
       reviews: normalizeReviews(next.reviews),
       weekDrawMode: next.weekDrawMode || "plan",
-      todayDetailBlockId: next.todayDetailBlockId || ""
+      todayDetailBlockId: next.todayDetailBlockId || "",
+      gcalSync: next.gcalSync && typeof next.gcalSync === "object" ? next.gcalSync : {}
     };
   }
 
@@ -737,6 +741,7 @@
     };
   }
   function saveState() {
+    gcalOnStateSaved();
     saveLocalState();
     queueRemoteSave();
   }
@@ -858,6 +863,7 @@
         authMessage = "";
         authError = "";
         render();
+        gcalInit();
       } catch (error) {
         console.error("Login failed.", error);
         clearAuthSession();
@@ -922,6 +928,7 @@
           <button class="text-btn" data-today title="오늘로 이동">오늘</button>
           <button class="text-btn" data-export title="JSON으로 내보내기">내보내기</button>
           <span class="sync-chip" data-sync-status>${esc(syncStatus || displayLoginId())}</span>
+          ${gcalEnabled() ? `<span class="sync-chip gcal-chip" data-gcal-status title="Google 캘린더 동기화 상태">${esc(gcalChipLabel())}</span>` : ""}
           <button class="text-btn" data-logout title="로그아웃">로그아웃</button>
         </div>
       </header>
@@ -1054,6 +1061,9 @@
     if (state.activeView === "guide") {
       return "주요 기능의 사용 예시를 한곳에서 봅니다.";
     }
+    if (state.activeView === "settings") {
+      return "Google 캘린더 연동과 앱 환경을 관리합니다.";
+    }
     return "오늘의 실행과 다음 리뷰까지 한 번에 봅니다.";
   }
 
@@ -1081,6 +1091,8 @@
         return renderStatsView();
       case "guide":
         return renderGuideView();
+      case "settings":
+        return renderSettingsView();
       default:
         return renderTodayView();
     }
@@ -2590,6 +2602,7 @@
 
   function bindEvents() {
     setupWeekTopScroll();
+    bindGcalEvents();
 
     app.querySelectorAll(".block-memo, .daily-journal, .daily-review, .daily-share-draft").forEach(bindAutoGrowTextarea);
 
@@ -3988,6 +4001,732 @@
       target.minutes += minutes;
     });
     return [...base, unlinked];
+  }
+
+  // ===== Google Calendar 양방향 동기화 (Plan 전용) =====
+  // 사양: GCAL_INTEGRATION_REQUEST.md — Plan만 / 양방향 / 전용 "Life Binder" 캘린더 / GIS OAuth / 폴링
+
+  const GCAL_LOCAL_KEY = "life-binder-gcal-v1";
+  const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar";
+  const GCAL_API = "https://www.googleapis.com/calendar/v3";
+  const GCAL_CALENDAR_NAME = "Life Binder";
+  const GCAL_PUSH_DELAY = 1200;
+  const GCAL_FAILURE_ALERT_AT = 3;
+  const GCAL_COLOR_BY_CATEGORY = { mainWork: "5", supportWork: "4", faithHome: "10", selfDev: "9", network: "6" };
+  const GCAL_CATEGORY_BY_COLOR = { 5: "mainWork", 4: "supportWork", 10: "faithHome", 9: "selfDev", 6: "network" };
+
+  let gcal = loadGcalLocal();
+  let gcalTokenClient = null;
+  let gcalGisPromise = null;
+  let gcalPushTimer = null;
+  let gcalPollTimer = null;
+  let gcalBusy = false;
+  let gcalInitialized = false;
+  let gcalApplyingRemote = false;
+  let gcalFailureCount = 0;
+  let gcalFailureAlerted = false;
+  let gcalStatusText = "";
+  const gcalLastFingerprints = new Map();
+
+  function loadGcalLocal() {
+    const defaults = {
+      clientId: "",
+      token: "",
+      tokenExpiresAt: 0,
+      calendarId: "",
+      email: "",
+      syncToken: "",
+      pollMinutes: 5,
+      lastPushAt: "",
+      lastPullAt: ""
+    };
+    try {
+      const raw = window.localStorage.getItem(GCAL_LOCAL_KEY);
+      if (!raw) return defaults;
+      return { ...defaults, ...JSON.parse(raw) };
+    } catch (error) {
+      return defaults;
+    }
+  }
+
+  function saveGcalLocal() {
+    try {
+      window.localStorage.setItem(GCAL_LOCAL_KEY, JSON.stringify(gcal));
+    } catch (error) {
+      console.warn("GCal settings save failed.", error);
+    }
+  }
+
+  function gcalEnabled() {
+    return Boolean(gcal.clientId);
+  }
+
+  function gcalConnected() {
+    return Boolean(gcal.token);
+  }
+
+  function gcalTimeLabel(iso) {
+    if (!iso) return "-";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "-";
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
+
+  function gcalChipLabel() {
+    if (gcalStatusText) return gcalStatusText;
+    if (!gcalConnected()) return "GCal 미연결";
+    return gcal.lastPullAt ? `GCal ${gcalTimeLabel(gcal.lastPullAt)}` : "GCal 연결됨";
+  }
+
+  function setGcalStatus(text) {
+    gcalStatusText = text;
+    const chip = app.querySelector("[data-gcal-status]");
+    if (chip) chip.textContent = gcalChipLabel();
+    const detail = app.querySelector("[data-gcal-settings-status]");
+    if (detail) detail.textContent = text || (gcalConnected() ? "정상" : "미연결");
+  }
+
+  function gcalRefreshSettingsTimes() {
+    const push = app.querySelector("[data-gcal-last-push]");
+    if (push) push.textContent = gcalTimeLabel(gcal.lastPushAt);
+    const pull = app.querySelector("[data-gcal-last-pull]");
+    if (pull) pull.textContent = gcalTimeLabel(gcal.lastPullAt);
+    const chip = app.querySelector("[data-gcal-status]");
+    if (chip) chip.textContent = gcalChipLabel();
+  }
+
+  function loadGis() {
+    if (window.google?.accounts?.oauth2) return Promise.resolve();
+    if (gcalGisPromise) return gcalGisPromise;
+    gcalGisPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        gcalGisPromise = null;
+        reject(new Error("Google 스크립트를 불러오지 못했습니다."));
+      };
+      document.head.appendChild(script);
+    });
+    return gcalGisPromise;
+  }
+
+  async function gcalRequestToken(interactive) {
+    await loadGis();
+    return new Promise((resolve, reject) => {
+      if (!gcalTokenClient || gcalTokenClient._clientId !== gcal.clientId) {
+        gcalTokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: gcal.clientId,
+          scope: GCAL_SCOPE,
+          callback: () => {}
+        });
+        gcalTokenClient._clientId = gcal.clientId;
+      }
+      gcalTokenClient.callback = (response) => {
+        if (response.error) {
+          reject(new Error(`oauth:${response.error}`));
+          return;
+        }
+        gcal.token = response.access_token;
+        gcal.tokenExpiresAt = Date.now() + Math.max(60, Number(response.expires_in || 3600) - 60) * 1000;
+        saveGcalLocal();
+        resolve(gcal.token);
+      };
+      gcalTokenClient.error_callback = (error) => {
+        reject(new Error(`oauth:${error?.type || "popup"}`));
+      };
+      gcalTokenClient.requestAccessToken({ prompt: interactive ? "consent" : "" });
+    });
+  }
+
+  async function gcalEnsureToken() {
+    if (gcal.token && Date.now() < gcal.tokenExpiresAt) return gcal.token;
+    return gcalRequestToken(false);
+  }
+
+  async function gcalApi(path, options = {}) {
+    const request = async (token) => fetch(`${GCAL_API}${path}`, {
+      method: options.method || "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(options.body ? { "Content-Type": "application/json" } : {})
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    let response = await request(await gcalEnsureToken());
+    if (response.status === 401) {
+      gcal.token = "";
+      gcal.tokenExpiresAt = 0;
+      saveGcalLocal();
+      response = await request(await gcalEnsureToken());
+    }
+    return response;
+  }
+
+  async function gcalEnsureCalendar() {
+    if (gcal.calendarId) {
+      const check = await gcalApi(`/calendars/${encodeURIComponent(gcal.calendarId)}`);
+      if (check.ok) return gcal.calendarId;
+      if (check.status !== 404 && check.status !== 410) throw new Error(`calendar check ${check.status}`);
+      gcal.calendarId = "";
+      gcal.syncToken = "";
+      saveGcalLocal();
+    }
+    let pageToken = "";
+    do {
+      const res = await gcalApi(`/users/me/calendarList?maxResults=250${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`);
+      if (!res.ok) throw new Error(`calendarList ${res.status}`);
+      const data = await res.json();
+      const found = (data.items || []).find((item) => item.summary === GCAL_CALENDAR_NAME);
+      if (found) {
+        gcal.calendarId = found.id;
+        saveGcalLocal();
+        return gcal.calendarId;
+      }
+      pageToken = data.nextPageToken || "";
+    } while (pageToken);
+    const created = await gcalApi("/calendars", { method: "POST", body: { summary: GCAL_CALENDAR_NAME, timeZone: "Asia/Seoul" } });
+    if (!created.ok) throw new Error(`calendar create ${created.status}`);
+    const data = await created.json();
+    gcal.calendarId = data.id;
+    gcal.syncToken = "";
+    saveGcalLocal();
+    return gcal.calendarId;
+  }
+
+  function gcalSyncMap() {
+    if (!state.gcalSync || typeof state.gcalSync !== "object") state.gcalSync = {};
+    return state.gcalSync;
+  }
+
+  function gcalBlockSyncable(block) {
+    return Boolean(block && !block.actualOnly && !block.cancelled && isValidISODate(block.date || "") && block.start && block.end);
+  }
+
+  function gcalFingerprint(block) {
+    return [block.title || "", block.date, block.start, block.end, block.categoryId, block.memoText || ""].join("|");
+  }
+
+  function gcalDateTime(date, time) {
+    if (time === "24:00") return `${addDays(date, 1)}T00:00:00`;
+    return `${date}T${time}:00`;
+  }
+
+  function gcalEventBody(block) {
+    return {
+      summary: block.title || "(제목 없음)",
+      description: block.memoText || "",
+      colorId: GCAL_COLOR_BY_CATEGORY[block.categoryId] || "5",
+      start: { dateTime: gcalDateTime(block.date, block.start), timeZone: "Asia/Seoul" },
+      end: { dateTime: gcalDateTime(block.date, block.end), timeZone: "Asia/Seoul" },
+      extendedProperties: { private: { lifeBinderId: block.id } }
+    };
+  }
+
+  function gcalSeoulParts(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const text = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(date);
+    return { date: text.slice(0, 10), time: text.slice(11, 16) };
+  }
+
+  function gcalParseEventTimes(event) {
+    const startRaw = event.start?.dateTime || "";
+    const endRaw = event.end?.dateTime || "";
+    if (!startRaw || !endRaw) return null;
+    const startParts = gcalSeoulParts(startRaw);
+    const endParts = gcalSeoulParts(endRaw);
+    if (!startParts || !endParts) return null;
+    const date = startParts.date;
+    let startMinutes = clampDayMinutes(minutesFromTime(startParts.time));
+    let endMinutes;
+    if (endParts.date !== date) {
+      endMinutes = DAY_END_HOUR * 60;
+    } else {
+      endMinutes = clampDayMinutes(minutesFromTime(endParts.time));
+    }
+    if (endMinutes <= startMinutes) {
+      endMinutes = Math.min(startMinutes + SNAP_MINUTES, DAY_END_HOUR * 60);
+      if (endMinutes <= startMinutes) startMinutes = endMinutes - SNAP_MINUTES;
+    }
+    return { date, start: timeFromMinutes(startMinutes), end: timeFromMinutes(endMinutes) };
+  }
+
+  function gcalRefreshFingerprintCache() {
+    state.blocks.forEach((block) => {
+      if (gcalBlockSyncable(block)) gcalLastFingerprints.set(block.id, gcalFingerprint(block));
+    });
+  }
+
+  function gcalStampLocalEdits() {
+    const map = gcalSyncMap();
+    const now = new Date().toISOString();
+    state.blocks.forEach((block) => {
+      if (!gcalBlockSyncable(block)) return;
+      const fingerprint = gcalFingerprint(block);
+      const last = gcalLastFingerprints.get(block.id);
+      if (last !== undefined && last !== fingerprint) {
+        block.planUpdatedAt = now;
+      } else if (last === undefined && !map[block.id] && !block.planUpdatedAt) {
+        block.planUpdatedAt = now;
+      }
+      gcalLastFingerprints.set(block.id, fingerprint);
+    });
+  }
+
+  function gcalOnStateSaved() {
+    if (!gcalEnabled()) return;
+    if (gcalApplyingRemote) {
+      gcalRefreshFingerprintCache();
+      return;
+    }
+    gcalStampLocalEdits();
+    if (gcalConnected()) gcalQueuePush();
+  }
+
+  function gcalQueuePush() {
+    if (!gcalEnabled() || !gcalConnected()) return;
+    if (gcalPushTimer) window.clearTimeout(gcalPushTimer);
+    gcalPushTimer = window.setTimeout(() => {
+      gcalPushTimer = null;
+      gcalPushAll().catch((error) => gcalHandleFailure(error, "push"));
+    }, GCAL_PUSH_DELAY);
+  }
+
+  async function gcalPushAll() {
+    if (!gcalEnabled() || !gcalConnected()) return;
+    if (gcalBusy) {
+      gcalQueuePush();
+      return;
+    }
+    gcalBusy = true;
+    setGcalStatus("GCal 보내는 중...");
+    try {
+      await gcalEnsureCalendar();
+      const map = gcalSyncMap();
+      const calendarPath = encodeURIComponent(gcal.calendarId);
+      const syncableIds = new Set();
+      let changed = false;
+      for (const block of state.blocks) {
+        if (!gcalBlockSyncable(block)) continue;
+        syncableIds.add(block.id);
+        const entry = map[block.id];
+        const fingerprint = gcalFingerprint(block);
+        if (!entry) {
+          const res = await gcalApi(`/calendars/${calendarPath}/events`, { method: "POST", body: gcalEventBody(block) });
+          if (!res.ok) throw new Error(`event insert ${res.status}`);
+          const data = await res.json();
+          map[block.id] = { eventId: data.id, etag: data.etag || "", updated: data.updated || "", fingerprint };
+          changed = true;
+        } else if (entry.fingerprint !== fingerprint) {
+          const res = await gcalApi(`/calendars/${calendarPath}/events/${encodeURIComponent(entry.eventId)}`, { method: "PATCH", body: gcalEventBody(block) });
+          if (res.status === 404 || res.status === 410) {
+            delete map[block.id];
+            changed = true;
+            gcalQueuePush();
+            continue;
+          }
+          if (!res.ok) throw new Error(`event patch ${res.status}`);
+          const data = await res.json();
+          map[block.id] = { eventId: data.id, etag: data.etag || "", updated: data.updated || "", fingerprint };
+          changed = true;
+        }
+      }
+      for (const blockId of Object.keys(map)) {
+        if (syncableIds.has(blockId)) continue;
+        const entry = map[blockId];
+        if (entry?.eventId) {
+          const res = await gcalApi(`/calendars/${calendarPath}/events/${encodeURIComponent(entry.eventId)}`, { method: "DELETE" });
+          if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`event delete ${res.status}`);
+        }
+        delete map[blockId];
+        gcalLastFingerprints.delete(blockId);
+        changed = true;
+      }
+      gcal.lastPushAt = new Date().toISOString();
+      saveGcalLocal();
+      if (changed) {
+        saveLocalState();
+        queueRemoteSave();
+      }
+      gcalFailureCount = 0;
+      gcalFailureAlerted = false;
+      setGcalStatus("");
+      gcalRefreshSettingsTimes();
+    } finally {
+      gcalBusy = false;
+    }
+  }
+
+  async function gcalPullNow(manual = false) {
+    if (!gcalEnabled() || !gcalConnected()) return;
+    if (gcalBusy) return;
+    gcalBusy = true;
+    setGcalStatus(manual ? "GCal 가져오는 중..." : "GCal 확인 중...");
+    try {
+      await gcalEnsureCalendar();
+      const calendarPath = encodeURIComponent(gcal.calendarId);
+      let events = [];
+      let pageToken = "";
+      let nextSyncToken = "";
+      let useToken = gcal.syncToken;
+      for (;;) {
+        const params = new URLSearchParams({ maxResults: "250", showDeleted: "true" });
+        if (useToken) params.set("syncToken", useToken);
+        if (pageToken) params.set("pageToken", pageToken);
+        const res = await gcalApi(`/calendars/${calendarPath}/events?${params.toString()}`);
+        if (res.status === 410) {
+          useToken = "";
+          gcal.syncToken = "";
+          pageToken = "";
+          events = [];
+          continue;
+        }
+        if (!res.ok) throw new Error(`events list ${res.status}`);
+        const data = await res.json();
+        events = events.concat(data.items || []);
+        if (data.nextPageToken) {
+          pageToken = data.nextPageToken;
+          continue;
+        }
+        nextSyncToken = data.nextSyncToken || "";
+        break;
+      }
+      gcalApplyRemoteEvents(events);
+      if (nextSyncToken) gcal.syncToken = nextSyncToken;
+      gcal.lastPullAt = new Date().toISOString();
+      saveGcalLocal();
+      gcalFailureCount = 0;
+      gcalFailureAlerted = false;
+      setGcalStatus("");
+      gcalRefreshSettingsTimes();
+    } finally {
+      gcalBusy = false;
+    }
+    gcalQueuePush();
+  }
+
+  function gcalApplyRemoteEvents(events) {
+    if (!events.length) return;
+    const map = gcalSyncMap();
+    const eventIdToBlockId = {};
+    Object.entries(map).forEach(([blockId, entry]) => {
+      if (entry?.eventId) eventIdToBlockId[entry.eventId] = blockId;
+    });
+    const writebacks = [];
+    gcalApplyingRemote = true;
+    try {
+      setState((draft) => {
+        events.forEach((event) => {
+          if (!event || event.recurringEventId || event.recurrence) return;
+          const linkedId = event.extendedProperties?.private?.lifeBinderId || eventIdToBlockId[event.id] || "";
+          if (event.status === "cancelled") {
+            if (linkedId) {
+              const idx = draft.blocks.findIndex((item) => item.id === linkedId);
+              if (idx >= 0) draft.blocks.splice(idx, 1);
+              delete map[linkedId];
+              gcalLastFingerprints.delete(linkedId);
+            }
+            return;
+          }
+          const times = gcalParseEventTimes(event);
+          if (!times) return;
+          if (linkedId) {
+            const block = draft.blocks.find((item) => item.id === linkedId);
+            if (!block) return;
+            const entry = map[linkedId] || { eventId: event.id, etag: "", updated: "", fingerprint: "" };
+            const remoteChanged = !entry.updated || (event.updated || "") > entry.updated;
+            const localChanged = gcalFingerprint(block) !== entry.fingerprint;
+            let applyRemote = remoteChanged;
+            if (remoteChanged && localChanged) {
+              applyRemote = (event.updated || "") > (block.planUpdatedAt || "");
+            }
+            if (applyRemote && remoteChanged) {
+              block.title = event.summary || block.title || "(제목 없음)";
+              block.memoText = event.description || "";
+              block.date = times.date;
+              block.start = times.start;
+              block.end = times.end;
+              const colorCategory = GCAL_CATEGORY_BY_COLOR[event.colorId || ""] || "";
+              if (colorCategory) {
+                block.categoryId = colorCategory;
+                if (!blockHasActualLine(block)) block.actualCategoryId = colorCategory;
+              }
+              block.planUpdatedAt = event.updated || new Date().toISOString();
+              map[linkedId] = { eventId: event.id, etag: event.etag || "", updated: event.updated || "", fingerprint: gcalFingerprint(block) };
+              gcalLastFingerprints.set(linkedId, map[linkedId].fingerprint);
+            } else {
+              map[linkedId] = { ...entry, eventId: event.id, updated: event.updated || entry.updated };
+            }
+            return;
+          }
+          const colorCategory = GCAL_CATEGORY_BY_COLOR[event.colorId || ""] || "mainWork";
+          const id = uid("block");
+          draft.blocks.push({
+            id,
+            title: event.summary || "(제목 없음)",
+            date: times.date,
+            start: times.start,
+            end: times.end,
+            categoryId: colorCategory,
+            actualCategoryId: colorCategory,
+            goalId: "",
+            projectId: "",
+            status: "planned",
+            actualStart: "",
+            actualEnd: "",
+            actualText: "",
+            actualDone: false,
+            actualOnly: false,
+            cancelled: false,
+            cancelMemo: "",
+            memoText: event.description || "",
+            photos: [],
+            planUpdatedAt: event.updated || new Date().toISOString()
+          });
+          map[id] = { eventId: event.id, etag: event.etag || "", updated: event.updated || "", fingerprint: "" };
+          writebacks.push({ eventId: event.id, blockId: id });
+        });
+      });
+    } finally {
+      gcalApplyingRemote = false;
+    }
+    const finalMap = gcalSyncMap();
+    writebacks.forEach((item) => {
+      const block = state.blocks.find((candidate) => candidate.id === item.blockId);
+      if (block && finalMap[item.blockId]) {
+        finalMap[item.blockId].fingerprint = gcalFingerprint(block);
+        gcalLastFingerprints.set(item.blockId, finalMap[item.blockId].fingerprint);
+      }
+    });
+    if (writebacks.length) {
+      gcalWritebackIds(writebacks).catch((error) => console.warn("GCal id writeback failed.", error));
+    }
+  }
+
+  async function gcalWritebackIds(items) {
+    const calendarPath = encodeURIComponent(gcal.calendarId);
+    for (const item of items) {
+      const res = await gcalApi(`/calendars/${calendarPath}/events/${encodeURIComponent(item.eventId)}`, {
+        method: "PATCH",
+        body: { extendedProperties: { private: { lifeBinderId: item.blockId } } }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const map = gcalSyncMap();
+        if (map[item.blockId]) {
+          map[item.blockId].updated = data.updated || map[item.blockId].updated;
+          map[item.blockId].etag = data.etag || map[item.blockId].etag;
+        }
+      }
+    }
+    saveLocalState();
+    queueRemoteSave();
+  }
+
+  function gcalHandleFailure(error, kind) {
+    console.warn("GCal sync failed.", kind, error);
+    gcalFailureCount += 1;
+    const needsAuth = /oauth|consent|interaction|access_denied|popup|invalid_grant/i.test(String(error?.message || error));
+    setGcalStatus(needsAuth ? "GCal 재연결 필요" : `GCal ${kind === "push" ? "전송" : "동기화"} 실패`);
+    if (gcalFailureCount >= GCAL_FAILURE_ALERT_AT && !gcalFailureAlerted) {
+      gcalFailureAlerted = true;
+      window.alert(`Google 캘린더 동기화가 ${gcalFailureCount}회 연속 실패했습니다.\n설정 탭에서 연결 상태를 확인해 주세요.`);
+    }
+  }
+
+  async function gcalSyncNow(manual) {
+    try {
+      await gcalPullNow(manual);
+    } catch (error) {
+      gcalHandleFailure(error, "pull");
+    }
+  }
+
+  function gcalSetupPolling() {
+    if (gcalPollTimer) {
+      window.clearInterval(gcalPollTimer);
+      gcalPollTimer = null;
+    }
+    const minutes = Number(gcal.pollMinutes) || 0;
+    if (!minutes || !gcalEnabled() || !gcalConnected()) return;
+    gcalPollTimer = window.setInterval(() => {
+      if (!document.hidden) gcalSyncNow(false);
+    }, minutes * 60 * 1000);
+  }
+
+  function gcalInit() {
+    if (gcalInitialized) {
+      gcalRefreshFingerprintCache();
+      return;
+    }
+    gcalInitialized = true;
+    gcalRefreshFingerprintCache();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && gcalEnabled() && gcalConnected() && authStatus === "signed-in") gcalSyncNow(false);
+    });
+    if (gcalEnabled() && gcalConnected()) {
+      gcalSyncNow(false);
+      gcalSetupPolling();
+    }
+  }
+
+  async function gcalConnect() {
+    if (!gcal.clientId) {
+      setGcalStatus("Client ID를 먼저 저장해 주세요.");
+      return;
+    }
+    try {
+      setGcalStatus("Google 연결 중...");
+      await gcalRequestToken(true);
+      const primary = await gcalApi("/calendars/primary");
+      if (primary.ok) {
+        const data = await primary.json();
+        gcal.email = data.id || "";
+      }
+      await gcalEnsureCalendar();
+      saveGcalLocal();
+      gcalFailureCount = 0;
+      gcalFailureAlerted = false;
+      setGcalStatus("");
+      render();
+      gcalSetupPolling();
+      await gcalSyncNow(true);
+    } catch (error) {
+      gcalHandleFailure(error, "pull");
+      render();
+    }
+  }
+
+  function gcalDisconnect() {
+    if (gcal.token && window.google?.accounts?.oauth2) {
+      try {
+        window.google.accounts.oauth2.revoke(gcal.token, () => {});
+      } catch (error) {
+        console.warn("GCal revoke failed.", error);
+      }
+    }
+    gcal.token = "";
+    gcal.tokenExpiresAt = 0;
+    gcal.email = "";
+    gcal.syncToken = "";
+    saveGcalLocal();
+    if (gcalPollTimer) {
+      window.clearInterval(gcalPollTimer);
+      gcalPollTimer = null;
+    }
+    setGcalStatus("");
+    render();
+  }
+
+  function renderSettingsView() {
+    const connected = gcalConnected();
+    const pollChoices = [
+      { value: 1, label: "1분마다" },
+      { value: 5, label: "5분마다 (권장)" },
+      { value: 15, label: "15분마다" },
+      { value: 0, label: "수동으로만" }
+    ];
+    return `
+      <div class="view-grid settings-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Google 캘린더 연동</h2>
+              <p class="panel-subtitle">Plan 일정을 전용 "Life Binder" 캘린더와 양방향으로 동기화합니다. 실행(Do) 기록은 앱 안에만 남습니다.</p>
+            </div>
+          </div>
+          <div class="panel-body settings-body">
+            <label class="settings-field">
+              <span>OAuth Client ID</span>
+              <input type="text" data-gcal-client-id value="${attr(gcal.clientId)}" placeholder="예: 1234567890-xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="settings-actions">
+              <button type="button" class="text-btn" data-gcal-save-client>Client ID 저장</button>
+              ${connected ? `
+                <button type="button" class="text-btn primary" data-gcal-sync-now>지금 동기화</button>
+                <button type="button" class="text-btn" data-gcal-disconnect>연결 해제</button>
+              ` : `
+                <button type="button" class="text-btn primary" data-gcal-connect ${gcal.clientId ? "" : "disabled"}>Google 계정 연결</button>
+              `}
+            </div>
+            <dl class="settings-meta">
+              <div><dt>연결 계정</dt><dd>${esc(gcal.email || "-")}</dd></div>
+              <div><dt>LB → GCal 마지막 전송</dt><dd data-gcal-last-push>${esc(gcalTimeLabel(gcal.lastPushAt))}</dd></div>
+              <div><dt>GCal → LB 마지막 수신</dt><dd data-gcal-last-pull>${esc(gcalTimeLabel(gcal.lastPullAt))}</dd></div>
+              <div><dt>상태</dt><dd data-gcal-settings-status>${esc(gcalStatusText || (connected ? "정상" : "미연결"))}</dd></div>
+            </dl>
+            <label class="settings-field">
+              <span>GCal 변경 자동 확인 주기</span>
+              <select data-gcal-poll>
+                ${pollChoices.map((choice) => `<option value="${choice.value}" ${Number(gcal.pollMinutes) === choice.value ? "selected" : ""}>${esc(choice.label)}</option>`).join("")}
+              </select>
+            </label>
+            <details class="settings-help">
+              <summary>OAuth Client ID 발급 방법</summary>
+              <ol>
+                <li><a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>에서 새 프로젝트를 만듭니다.</li>
+                <li>"API 및 서비스 → 라이브러리"에서 <strong>Google Calendar API</strong>를 사용 설정합니다.</li>
+                <li>"OAuth 동의 화면"에서 외부(External) 유형으로 만들고, 본인 Google 계정을 테스트 사용자로 추가합니다.</li>
+                <li>"사용자 인증 정보 → 사용자 인증 정보 만들기 → OAuth 클라이언트 ID"에서 <strong>웹 애플리케이션</strong>을 선택합니다.</li>
+                <li>"승인된 JavaScript 원본"에 이 앱의 주소를 추가합니다 (예: <code>https://xyzics82.github.io</code>, 로컬 테스트 시 <code>http://localhost:8000</code>).</li>
+                <li>생성된 Client ID를 복사해 위 입력칸에 붙여넣고 저장 → "Google 계정 연결"을 누릅니다.</li>
+              </ol>
+              <p>자세한 절차는 README의 "Google 캘린더 연동" 항목에도 있습니다.</p>
+            </details>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function bindGcalEvents() {
+    const saveButton = app.querySelector("[data-gcal-save-client]");
+    if (saveButton) {
+      saveButton.addEventListener("click", () => {
+        const input = app.querySelector("[data-gcal-client-id]");
+        const next = String(input?.value || "").trim();
+        if (next !== gcal.clientId) {
+          gcal.clientId = next;
+          gcalTokenClient = null;
+          saveGcalLocal();
+        }
+        render();
+      });
+    }
+    const connectButton = app.querySelector("[data-gcal-connect]");
+    if (connectButton) {
+      connectButton.addEventListener("click", () => {
+        gcalConnect();
+      });
+    }
+    const disconnectButton = app.querySelector("[data-gcal-disconnect]");
+    if (disconnectButton) {
+      disconnectButton.addEventListener("click", gcalDisconnect);
+    }
+    const syncButton = app.querySelector("[data-gcal-sync-now]");
+    if (syncButton) {
+      syncButton.addEventListener("click", () => {
+        gcalSyncNow(true);
+      });
+    }
+    const pollSelect = app.querySelector("[data-gcal-poll]");
+    if (pollSelect) {
+      pollSelect.addEventListener("change", () => {
+        gcal.pollMinutes = Number(pollSelect.value) || 0;
+        saveGcalLocal();
+        gcalSetupPolling();
+      });
+    }
   }
 
   function exportData() {

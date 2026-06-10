@@ -37,5 +37,29 @@
 - 스케줄 항목별 연결 메모와 사진 첨부
 - 주요 기능 예시 가이드
 - JSON 내보내기
+- Google 캘린더 양방향 동기화 (Plan 전용)
+- 모바일 화면 최적화 (상단 고정 내비게이션, 하루 단위 주간표 스와이프, 하단 시트형 일정 팝업)
 
-데이터는 브라우저 `localStorage`에 저장됩니다.
+데이터는 브라우저 `localStorage`에 저장되고, 로그인 시 Supabase로 원격 동기화됩니다.
+
+## Google 캘린더 연동
+
+Plan(계획) 일정만 전용 "Life Binder" 캘린더와 양방향 동기화합니다. 실행(Do) 기록은 앱 안에만 남습니다. 동기화 매핑·충돌 규칙 등 상세 사양은 `GCAL_INTEGRATION_REQUEST.md`를 참고하세요.
+
+### OAuth Client ID 발급 절차
+
+1. [Google Cloud Console](https://console.cloud.google.com/)에 접속해 새 프로젝트를 만듭니다.
+2. **API 및 서비스 → 라이브러리**에서 `Google Calendar API`를 검색해 **사용 설정**합니다.
+3. **API 및 서비스 → OAuth 동의 화면**에서 앱을 만듭니다.
+   - User Type: **외부(External)**
+   - 게시 상태가 "테스트"라면 **테스트 사용자**에 본인 Google 계정을 추가합니다.
+4. **API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → OAuth 클라이언트 ID**를 선택합니다.
+   - 애플리케이션 유형: **웹 애플리케이션**
+   - **승인된 JavaScript 원본**에 앱 주소를 추가합니다.
+     - 배포: `https://xyzics82.github.io`
+     - 로컬 테스트: `http://localhost:8000`
+   - 리디렉션 URI는 필요 없습니다 (GIS 토큰 방식).
+5. 생성된 **Client ID**(`....apps.googleusercontent.com`)를 복사합니다.
+6. 앱의 **설정 탭**에서 Client ID를 붙여넣고 저장 → **Google 계정 연결**을 누릅니다.
+
+연결하면 "Life Binder" 캘린더가 자동 생성되고, 이후 일정 저장 시 즉시 GCal로 전송되며 GCal 변경분은 기본 5분 간격(설정에서 변경 가능)으로 가져옵니다. Client ID와 토큰은 이 브라우저의 `localStorage`에만 저장됩니다.
