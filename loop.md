@@ -1,4 +1,4 @@
-# loop.md — Life Binder Web 자율 개발 루프
+# loop.md — Schedule Binder 자율 개발 루프
 
 이 파일은 AI 코딩 에이전트(Claude Code, Codex 등)가 **매 반복(iteration)마다 처음부터 읽고 그대로 따르는 지시서**다.
 한 반복 = 작업 1개 선택 → 구현 → 검증 → 커밋 → 기록. 그 이상 하지 않는다.
@@ -7,7 +7,8 @@
 
 ## 1. 프로젝트 핵심 사실 (먼저 숙지)
 
-- **앱**: Life Binder Web — 3P바인더 개념의 자기경영 캘린더. Plan(계획)과 Do(실행)를 같은 시간표에서 비교하는 것이 핵심.
+- **앱**: Schedule Binder (구 Life Binder Web) — 3P바인더 개념의 자기경영 캘린더. Plan(계획)과 Do(실행)를 같은 시간표에서 비교하는 것이 핵심.
+- **이름 규칙**: 사용자에게 보이는 모든 이름은 "Schedule Binder". 단 localStorage 키(`life-binder-*`)와 GCal `lifeBinderId` extendedProperty는 기존 데이터 호환을 위해 그대로 둔다 — 절대 바꾸지 말 것.
 - **구성**: 빌드 도구·프레임워크 없음. 정적 파일 3개가 전부.
   - `index.html` — 진입점 (수정할 일 거의 없음)
   - `app.js` — 전체 로직. 단일 IIFE, 상태 변경 후 `render()` 재호출 방식. 약 4,000줄.
@@ -18,7 +19,7 @@
 
 ## 2. 작업 우선순위
 
-1. **Google 캘린더 연동** — `GCAL_INTEGRATION_REQUEST.md`가 단일 사양서다. 이 문서의 ✅ 결정사항을 그대로 따른다 (Plan만 / 양방향 / 전용 "Life Binder" 캘린더 / GIS OAuth / 폴링 5분).
+1. **Google 캘린더 연동** — `GCAL_INTEGRATION_REQUEST.md`가 단일 사양서다. 이 문서의 ✅ 결정사항을 그대로 따른다 (Plan만 / 양방향 / 전용 "Schedule Binder" 캘린더 / GIS OAuth / 폴링 5분).
    - 미정 항목(`[ 입력: ... ]`)은 문서에 "추천"이 적혀 있으면 추천값을 채택하고, 채택 사실을 사양서에 직접 기입한다.
    - OAuth Client ID는 코드에 박지 말고 **앱 설정 UI에서 입력받아 localStorage에 저장**하는 구조로 구현한다.
    - 연동 작업을 작은 단위로 쪼개 한 반복에 하나씩: 설정 UI → OAuth 연결 → LB→GCal 단방향 → GCal→LB 가져오기 → 폴링/충돌 처리 → 오류 표시.

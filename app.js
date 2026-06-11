@@ -626,7 +626,7 @@
         {
           id: projectA,
           goalId: goalA,
-          title: "Life Binder MVP 만들기",
+          title: "Schedule Binder MVP 만들기",
           description: "목표, 시간, 리뷰, 노트를 연결하는 첫 버전.",
           dueDate: addDays(today, 14),
           status: "active"
@@ -822,7 +822,7 @@
           <div class="auth-brand">
             <div class="binder-mark" aria-hidden="true"></div>
             <div>
-              <p class="brand-title">Life Binder</p>
+              <p class="brand-title">Schedule Binder</p>
               <p class="brand-subtitle">Supabase sync</p>
             </div>
           </div>
@@ -878,10 +878,10 @@
   function renderSidebar() {
     return `
       <aside class="sidebar">
-        <div class="brand" aria-label="Life Binder Web">
+        <div class="brand" aria-label="Schedule Binder">
           <div class="binder-mark" aria-hidden="true"></div>
           <div class="brand-copy">
-            <p class="brand-title">Life Binder</p>
+            <p class="brand-title">Schedule Binder</p>
             <p class="brand-subtitle">목표, 시간, 기록을 연결하는 자기경영 보드</p>
           </div>
         </div>
@@ -4004,12 +4004,14 @@
   }
 
   // ===== Google Calendar 양방향 동기화 (Plan 전용) =====
-  // 사양: GCAL_INTEGRATION_REQUEST.md — Plan만 / 양방향 / 전용 "Life Binder" 캘린더 / GIS OAuth / 폴링
+  // 사양: GCAL_INTEGRATION_REQUEST.md — Plan만 / 양방향 / 전용 "Schedule Binder" 캘린더 / GIS OAuth / 폴링
+  // 주의: localStorage 키(life-binder-*)와 lifeBinderId extendedProperty는 기존 데이터·매핑 호환을 위해 유지한다.
 
   const GCAL_LOCAL_KEY = "life-binder-gcal-v1";
   const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar";
   const GCAL_API = "https://www.googleapis.com/calendar/v3";
-  const GCAL_CALENDAR_NAME = "Life Binder";
+  const GCAL_CALENDAR_NAME = "Schedule Binder";
+  const GCAL_CALENDAR_LEGACY_NAME = "Life Binder"; // 구 이름 — 발견 시 자동 개명
   const GCAL_PUSH_DELAY = 1200;
   const GCAL_FAILURE_ALERT_AT = 3;
   const GCAL_COLOR_BY_CATEGORY = { mainWork: "5", supportWork: "4", faithHome: "10", selfDev: "9", network: "6" };
@@ -4164,16 +4166,29 @@
     return response;
   }
 
+  async function gcalRenameCalendar(calendarId) {
+    try {
+      await gcalApi(`/calendars/${encodeURIComponent(calendarId)}`, { method: "PATCH", body: { summary: GCAL_CALENDAR_NAME } });
+    } catch (error) {
+      console.warn("GCal calendar rename failed.", error);
+    }
+  }
+
   async function gcalEnsureCalendar() {
     if (gcal.calendarId) {
       const check = await gcalApi(`/calendars/${encodeURIComponent(gcal.calendarId)}`);
-      if (check.ok) return gcal.calendarId;
+      if (check.ok) {
+        const info = await check.json();
+        if (info.summary && info.summary !== GCAL_CALENDAR_NAME) await gcalRenameCalendar(gcal.calendarId);
+        return gcal.calendarId;
+      }
       if (check.status !== 404 && check.status !== 410) throw new Error(`calendar check ${check.status}`);
       gcal.calendarId = "";
       gcal.syncToken = "";
       saveGcalLocal();
     }
     let pageToken = "";
+    let legacyFound = null;
     do {
       const res = await gcalApi(`/users/me/calendarList?maxResults=250${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`);
       if (!res.ok) throw new Error(`calendarList ${res.status}`);
@@ -4184,8 +4199,16 @@
         saveGcalLocal();
         return gcal.calendarId;
       }
+      if (!legacyFound) legacyFound = (data.items || []).find((item) => item.summary === GCAL_CALENDAR_LEGACY_NAME);
       pageToken = data.nextPageToken || "";
     } while (pageToken);
+    if (legacyFound) {
+      gcal.calendarId = legacyFound.id;
+      gcal.syncToken = "";
+      saveGcalLocal();
+      await gcalRenameCalendar(legacyFound.id);
+      return gcal.calendarId;
+    }
     const created = await gcalApi("/calendars", { method: "POST", body: { summary: GCAL_CALENDAR_NAME, timeZone: "Asia/Seoul" } });
     if (!created.ok) throw new Error(`calendar create ${created.status}`);
     const data = await created.json();
@@ -4642,7 +4665,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Google 캘린더 연동</h2>
-              <p class="panel-subtitle">Plan 일정을 전용 "Life Binder" 캘린더와 양방향으로 동기화합니다. 실행(Do) 기록은 앱 안에만 남습니다.</p>
+              <p class="panel-subtitle">Plan 일정을 전용 "Schedule Binder" 캘린더와 양방향으로 동기화합니다. 실행(Do) 기록은 앱 안에만 남습니다.</p>
             </div>
           </div>
           <div class="panel-body settings-body">
@@ -4734,7 +4757,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `life-binder-${todayISO()}.json`;
+    link.download = `schedule-binder-${todayISO()}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -29,7 +29,7 @@
 
 ## 4. 제품 콘셉트
 
-임시 제품명: Life Binder Web
+제품명: Schedule Binder (구 임시 제품명 Life Binder Web, 2026-06-10 확정)
 
 핵심 문장:
 

@@ -1,6 +1,7 @@
 # Google 캘린더 연동 지시서
 
-> 이 문서는 Life Binder Web 앱에 Google 캘린더 연동을 추가하기 위한 작업 지시서입니다.
+> 이 문서는 Schedule Binder(구 Life Binder Web) 앱에 Google 캘린더 연동을 추가하기 위한 작업 지시서입니다.
+> 2026-06-10 앱 이름 확정에 따라 전용 캘린더 이름도 "Schedule Binder"로 변경됨 (기존 캘린더는 자동 개명).
 > **§1, §3-2 등 주요 결정은 이미 사용자가 선택을 마쳤고 ✅로 표시되어 있습니다.**
 > 아직 비어있는 **`[ 입력: ... ]`** 항목만 채워서 다시 보내주시면 작업을 시작합니다.
 
@@ -8,7 +9,7 @@
 
 ## 사용 시나리오 (이 문서의 전제)
 
-- **주 사용 도구**: 데스크톱에서 **Life Binder(LB) 앱**으로 일정 관리
+- **주 사용 도구**: 데스크톱에서 **Schedule Binder(LB) 앱**으로 일정 관리 (LB는 구 명칭 Life Binder의 약칭, 문서 내 통용)
 - **보조 사용 도구**: 이동 중 **모바일에서는 Google 캘린더(GCal)**가 편함
 - **연동 목적**: 데스크톱에서 만든 LB 계획을 모바일 GCal에서 보고, 모바일에서 만든 일정을 LB로 가져오기 위함
 - **결론**: **Plan만 / 양방향 / 전용 캘린더 사용**
@@ -17,7 +18,7 @@
 
 ## 0. 기본 정보 (수정 불필요)
 
-- 대상 앱: Life Binder Web (`D:\11_WorkSpace\Schedule_Binder`)
+- 대상 앱: Schedule Binder (`D:\11_WorkSpace\Schedule_Binder`)
 - 구성: 정적 웹앱 (`index.html` + `app.js` + `styles.css`)
 - 배포: GitHub Pages (`.github/workflows/pages.yml`)
 - 현재 데이터 저장: 브라우저 `localStorage` + Supabase 원격 저장
@@ -50,9 +51,9 @@
 
 ### 1-4. 동기화 대상 캘린더 ✅ (양방향 + Plan만 조합에서는 사실상 강제)
 
-- ✅ **(i) 새 캘린더 "Life Binder"를 앱이 자동 생성** 후 거기에만 동기화
+- ✅ **(i) 새 캘린더 "Schedule Binder"를 앱이 자동 생성** 후 거기에만 동기화
   - 이유: 양방향 + Plan-only 조합에서는 GCal → LB 방향이 "전용 캘린더 안의 모든 이벤트를 LB Plan으로 가져온다"는 단순한 규칙이 됩니다. Primary 캘린더에 섞으면 회사 일정·생일·자동 추가된 이벤트까지 다 LB로 들어와서 노이즈가 큽니다.
-  - 모바일 GCal에서는 좌측 메뉴에서 "Life Binder" 캘린더의 색·표시 여부를 자유롭게 켜고 끌 수 있습니다.
+  - 모바일 GCal에서는 좌측 메뉴에서 "Schedule Binder" 캘린더의 색·표시 여부를 자유롭게 켜고 끌 수 있습니다.
 
 ---
 
