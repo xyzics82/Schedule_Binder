@@ -1122,26 +1122,6 @@
     `;
   }
 
-  function renderTodayLinkedRecord(block, selected = false) {
-    const hasPlan = !block.actualOnly;
-    const hasActual = blockHasActualLine(block);
-    const category = categoryById(hasActual ? (block.actualCategoryId || block.categoryId) : block.categoryId);
-    const displayTitle = block.actualText || block.title;
-    const displayTime = hasActual
-      ? formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end)
-      : formatTimeRange(block.start, block.end);
-    return `
-      <button type="button" class="today-schedule-card today-schedule-select ${selected ? "is-selected" : ""} ${blockHasLinkedNote(block) ? "has-note" : ""}" data-select-today-block="${attr(block.id)}" style="border-left-color:${attr(category.color)}">
-        <div class="today-card-head">
-          <span>${esc(category.name)}</span>
-          <strong>${esc(displayTime)}</strong>
-        </div>
-        <strong class="today-schedule-title">${hasActual ? richMultiline(displayTitle || "일정") : multiline(displayTitle || "일정")}</strong>
-        <span class="today-schedule-meta">${hasPlan ? `계획 ${esc(formatTimeRange(block.start, block.end))}` : "계획 없음"}${hasActual ? ` · 실행 ${esc(formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end))}` : ""}</span>
-      </button>
-    `;
-  }
-
   function renderTodayScheduleBoard(date, selectedBlockId) {
     const blocks = blocksForDate(date);
     const mode = state.weekDrawMode || "plan";
@@ -1495,10 +1475,6 @@
     );
   }
 
-  function blockIsExecuted(block) {
-    return blockHasActualLine(block);
-  }
-
   function renderDailyCheckForm(date) {
     const formId = `daily-check-title-${date}`;
     return `
@@ -1699,26 +1675,6 @@
     return `${formatDate(date, { month: "numeric", day: "numeric" })} (${formatDate(date, { weekday: "short" })})`;
   }
 
-  function renderPlanSegment(block) {
-    const category = categoryById(block.categoryId);
-    const top = linePercent(block.start);
-    const height = durationPercent(block.start, block.end, 0);
-    return `
-      <div class="time-segment plan-segment ${block.cancelled ? "is-cancelled" : ""}" data-edit-plan="${attr(block.id)}" style="top:${top}%; height:${height}%; --segment-color:${attr(category.color)}; border-left-color:${attr(category.color)}">
-        <div class="segment-head">
-          <strong class="segment-title">${multiline(block.title)}</strong>
-          <span class="segment-time">${esc(formatTimeRange(block.start, block.end))}</span>
-        </div>
-        ${block.cancelled ? `<button class="cancel-memo" data-open-cancel="${attr(block.id)}" title="취소 메모 보기">취소: ${esc(shortText(block.cancelMemo || "메모 없음", 18))}</button>` : ""}
-      </div>
-    `;
-  }
-
-  function actualMatchesPlan(block) {
-    if (!blockHasActualLine(block) || block.actualOnly) return false;
-    return String(block.actualText || block.title || "").trim() === String(block.title || "").trim();
-  }
-
   function blockHasLinkedActual(block) {
     return !block.actualOnly && blockHasActualLine(block);
   }
@@ -1892,19 +1848,6 @@
       item.width = totalWidth / columnCount;
       item.left = leftOffset + item.columnIndex * item.width;
     });
-  }
-
-  function renderActualSegment(block) {
-    const top = linePercent(block.actualStart || block.start);
-    const height = durationPercent(block.actualStart || block.start, block.actualEnd || block.end, 0);
-    return `
-      <div class="time-segment actual-segment" data-edit-actual="${attr(block.id)}" style="top:${top}%; height:${height}%">
-        <div class="segment-head">
-          <strong class="segment-title">${richMultiline(block.actualText || "실행 내용")}</strong>
-          <span class="segment-time">${esc(formatTimeRange(block.actualStart || block.start, block.actualEnd || block.end))}</span>
-        </div>
-      </div>
-    `;
   }
 
   function shortText(text, max) {
@@ -2099,32 +2042,6 @@
     if (h && m) return `${h}h${m}m`;
     if (h) return `${h}h`;
     return `${m}m`;
-  }
-
-  function renderMonthProjectForm(year, month) {
-    const firstDay = toISO(new Date(year, month, 1));
-    return `
-      <form class="quick-line week-task-form" data-form="task">
-        <div class="field">
-          <label for="month-project-title">이번 달 프로젝트</label>
-          <input id="month-project-title" name="title" required placeholder="이번 달 프로젝트 체크박스">
-          <input type="hidden" name="projectId" value="">
-          <input type="hidden" name="dueDate" value="${attr(firstDay)}">
-          <input type="hidden" name="weekStart" value="${attr(startOfWeek(firstDay))}">
-          <input type="hidden" name="scope" value="monthProject">
-        </div>
-        <button class="icon-btn primary week-task-add" type="submit" title="이번 달 프로젝트 추가">+</button>
-      </form>
-    `;
-  }
-  function renderMonthlyProjects(year, month) {
-    const items = state.tasks.filter((task) => {
-      if ((task.scope || "") !== "monthProject" || !task.dueDate) return false;
-      const due = parseISO(task.dueDate);
-      return due.getFullYear() === year && due.getMonth() === month;
-    });
-    if (!items.length) return `<div class="empty">이번 달 프로젝트 체크박스가 없습니다.</div>`;
-    return items.map(renderTaskRow).join("");
   }
 
   function renderGoalsView() {
@@ -3465,24 +3382,6 @@
     });
   }
 
-  function findBestPlanForActual(blocks, date, start, end) {
-    const actualStart = minutesFromTime(start);
-    const actualEnd = minutesFromTime(end);
-    let best = null;
-    let bestOverlap = 0;
-    blocks.forEach((block) => {
-      if (block.date !== date || block.actualOnly || block.cancelled) return;
-      const planStart = minutesFromTime(block.start);
-      const planEnd = minutesFromTime(block.end);
-      const overlap = Math.max(0, Math.min(actualEnd, planEnd) - Math.max(actualStart, planStart));
-      if (overlap > bestOverlap) {
-        best = block;
-        bestOverlap = overlap;
-      }
-    });
-    return bestOverlap > 0 ? best : null;
-  }
-
   function openPlanCopyPicker(sourceDate) {
     const plans = state.blocks.filter((block) => {
       return block.date === sourceDate && !block.actualOnly && !block.cancelled;
@@ -3858,35 +3757,6 @@
           body: data.body.trim(),
           createdAt: new Date().toISOString()
         });
-      });
-      return;
-    }
-
-    if (type === "paper-week") {
-      const weekStart = form.dataset.weekStart;
-      const businessObjectives = Array.from({ length: 5 }, (_, idx) => ({
-        text: (data[`businessObjectives${idx}`] || "").trim(),
-        done: data[`businessObjectivesDone${idx}`] === "on"
-      }));
-      const personalObjectives = Array.from({ length: 5 }, (_, idx) => ({
-        text: (data[`personalObjectives${idx}`] || "").trim(),
-        done: data[`personalObjectivesDone${idx}`] === "on"
-      }));
-      const habits = Array.from({ length: 4 }, (_, row) => ({
-        name: (data[`habitName${row}`] || "").trim(),
-        days: Array.from({ length: 7 }, (_, col) => data[`habit${row}_${col}`] === "on")
-      }));
-      setState((draft) => {
-        const existing = draft.reviews.weekly[weekStart] || {};
-        draft.reviews.weekly[weekStart] = {
-          ...existing,
-          dontForget: (data.dontForget || "").trim(),
-          businessObjectives,
-          personalObjectives,
-          meetingNotes: (data.meetingNotes || "").trim(),
-          habits,
-          thanks: (data.thanks || "").trim()
-        };
       });
       return;
     }
