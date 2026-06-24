@@ -4,10 +4,29 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Schedule Binder</title>
-    <link rel="stylesheet" href="./styles.css?v=20260610-rename-1">
+    <meta name="description" content="3링 바인더식 Plan/Do 비교 일정 관리 앱">
+
+    <!-- PWA -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#002b36">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Schedule Binder">
+
+    <link rel="stylesheet" href="./styles.css?v=20260624-pwa-1">
   </head>
   <body>
     <div id="app" aria-live="polite"></div>
-    <script src="./app.js?v=20260610-rename-1"></script>
+    <script src="./app.js?v=20260624-pwa-1"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("./sw.js").catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>
