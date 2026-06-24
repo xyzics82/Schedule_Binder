@@ -7608,6 +7608,33 @@ body {
   /* 라벨 과밀 방지: 2시간 간격으로 표시 */
   .week-planner .day-column:first-child .day-axis span:nth-child(even) { visibility: hidden; }
 
+  /* 타임라인 블록 글씨 축소 (모바일 전용 — PC는 미디어쿼리 밖이라 그대로) */
+  .week-planner .calendar-segment .segment-head { gap: 2px; line-height: 1.05; }
+  .week-planner .calendar-segment .segment-head strong {
+    font-size: 9px !important;
+    font-weight: 800;
+  }
+  .week-planner .calendar-segment .segment-head span {
+    font-size: 8px !important;
+    font-weight: 700;
+  }
+  .week-planner .actual-segment .segment-head span { font-size: 8px !important; }
+  .week-planner .calendar-segment .segment-title { -webkit-line-clamp: 1; }
+  .week-planner .plan-summary-segment .plan-time-stack strong,
+  .week-planner .plan-summary-segment .plan-time-stack span {
+    font-size: 8px !important;
+  }
+
+  /* 주간 시트 보조 텍스트도 폰에서 축소 */
+  .week-sheet .panel-subtitle {
+    font-size: 12px !important;
+    line-height: 1.3;
+  }
+  .week-task-bucket h4 { font-size: 13px; }
+  .week-task-bucket .row-title,
+  .week-task-bucket .task-title-input,
+  .week-task-bucket .row-meta { font-size: 12px; }
+
   /* --- 월간: 6주 그리드를 한 화면에 --- */
   .month-board {
     display: flex !important;
