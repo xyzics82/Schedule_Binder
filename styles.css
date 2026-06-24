@@ -7531,3 +7531,109 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== 모바일 캘린더: 주간·월간 한 화면 보기 (PWA) =====
+   파일 맨 끝 = 소스 순서상 최종 오버라이드 레이어. 핵심 레이아웃 속성엔
+   !important를 붙여 앞쪽 규칙보다 확실히 우선하도록 한다. */
+@media (max-width: 720px) {
+  /* 세로 스택 */
+  .full-grid,
+  .month-page {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* --- 주간: 7일을 한 화면에 --- */
+  .week-sheet .panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: visible !important;
+  }
+  /* 달력(타임라인)을 위로, 보조(할 일) 패널은 아래로 */
+  .week-sheet .week-planner-scroll { order: 0; }
+  .week-sheet .week-task-columns { order: 1; }
+  .week-sheet .week-top-scroll { display: none !important; }
+
+  .week-planner-scroll {
+    overflow: visible !important;
+    padding-bottom: 0;
+  }
+  .week-planner {
+    min-width: 0 !important;
+    width: 100%;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 2px;
+  }
+
+  .week-planner .day-column { min-height: 0 !important; }
+
+  /* 헤더: 날짜만 작게, 부가 버튼 정리 */
+  .week-planner .day-head {
+    padding: 3px 2px;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .week-planner .day-head-main { gap: 2px; }
+  .week-planner .day-date-line {
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+  .week-planner .day-mode-chip {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+  .week-planner .day-copy-plan { display: none !important; }
+
+  /* 일일 체크 목록은 7열 주간에선 숨김(데이터 유지, 오늘/월간에서 접근) */
+  .week-planner .day-checks { display: none !important; }
+
+  /* 시간축 압축: 5~24시 전체가 스크롤 없이 한 화면에 */
+  .week-planner .day-draw-board {
+    --hour-row: clamp(13px, calc((100svh - 300px) / 19), 34px) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  /* 시간 숫자축은 GCal처럼 맨 왼쪽 첫 컬럼에만(모든 행이 같은 시간 척도) */
+  .week-planner .day-column:first-child .day-draw-board {
+    grid-template-columns: 16px minmax(0, 1fr) !important;
+  }
+  .week-planner .day-column:not(:first-child) .day-axis { display: none !important; }
+  .week-planner .day-axis span {
+    font-size: 8px;
+    padding-top: 1px;
+    line-height: 1;
+  }
+  /* 라벨 과밀 방지: 2시간 간격으로 표시 */
+  .week-planner .day-column:first-child .day-axis span:nth-child(even) { visibility: hidden; }
+
+  /* --- 월간: 6주 그리드를 한 화면에 --- */
+  .month-board {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .month-board .month-calendar-wrap { order: 0; }
+  .month-board .month-week-summaries { order: 1; }
+
+  .month-scroll { overflow: visible !important; }
+  .month-grid {
+    min-width: 0 !important;
+    width: 100%;
+    gap: 2px !important;
+  }
+  .month-grid .month-head {
+    font-size: 10px;
+    padding: 2px 0;
+  }
+  .month-grid .month-cell {
+    min-height: clamp(40px, calc((100svh - 240px) / 7), 96px) !important;
+    padding: 2px;
+  }
+  .month-grid .month-number { gap: 1px; }
+  .month-grid .month-date-pill { font-size: 11px; }
+  .month-grid .month-check-count { font-size: 8px; }
+  /* 좁은 셀: 체크 칩 텍스트는 숨기고 완료/전체 카운트만 표시 */
+  .month-grid .month-cell .month-checks { display: none !important; }
+}
