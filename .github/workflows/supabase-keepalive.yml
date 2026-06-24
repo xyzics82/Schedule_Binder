@@ -1,17 +1,26 @@
 name: Supabase keep-alive
 
 # 무료 플랜 자동 일시정지(약 1주 미사용 시) 방지용.
-# 3일에 한 번 가벼운 REST 요청을 보내 프로젝트 활동을 유지한다.
+# 매일 가벼운 REST 요청을 보내 Supabase 프로젝트 활동을 유지한다.
+# 추가로, 장기간 저장소에 활동이 없으면 GitHub가 cron 워크플로우 자체를
+# 60일 후 자동 비활성화하므로, 마지막 커밋이 오래되면 heartbeat 커밋을 남겨
+# 스케줄이 꺼지지 않게 한다.
 
 on:
   schedule:
-    - cron: "0 3 */3 * *" # 3일마다 03:00 UTC (12:00 KST)
+    - cron: "0 3 * * *" # 매일 03:00 UTC (12:00 KST)
   workflow_dispatch: {}
+
+permissions:
+  contents: write # heartbeat 커밋 push 용
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Ping Supabase REST API
         run: |
           SUPABASE_URL="https://ktchyquqqmvvsmnqpurm.supabase.co"
@@ -23,6 +32,27 @@ jobs:
           cat /tmp/body || true
           # 200(성공)·401/403(RLS 차단)이라도 게이트웨이/DB에 도달했으면 활동으로 집계됨
           case "${status}" in
-            2*|401|403) echo "Keep-alive OK"; exit 0 ;;
+            2*|401|403) echo "Keep-alive OK" ;;
             *) echo "Supabase unreachable (paused?)"; exit 1 ;;
           esac
+
+      - name: Keep schedule alive (prevent 60-day auto-disable)
+        run: |
+          # GitHub는 저장소 활동이 60일간 없으면 cron 워크플로우를 자동 비활성화한다.
+          # 마지막 커밋이 50일 이상 지났으면 가벼운 heartbeat 커밋을 남겨 갱신한다.
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          days=$(( (now - last) / 86400 ))
+          echo "마지막 커밋 이후 경과일: ${days}일"
+          if [ "${days}" -ge 50 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            mkdir -p .github
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive-heartbeat.txt
+            git add .github/keepalive-heartbeat.txt
+            git commit -m "chore: keepalive heartbeat [skip ci]"
+            git push
+            echo "heartbeat 커밋 생성·push 완료"
+          else
+            echo "최근 활동 있음 — heartbeat 불필요"
+          fi
