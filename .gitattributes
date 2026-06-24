@@ -1,0 +1,25 @@
+# 저장소·작업트리 모두 LF로 통일해 CRLF diff 노이즈를 영구 제거한다.
+* text=auto eol=lf
+
+# 명시적 텍스트 타입
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.svg   text eol=lf
+.gitignore   text eol=lf
+.nojekyll    text eol=lf
+
+# 바이너리(있을 경우 줄바꿈 변환 방지)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
