@@ -25,15 +25,21 @@ jobs:
         run: |
           SUPABASE_URL="https://ktchyquqqmvvsmnqpurm.supabase.co"
           APIKEY="sb_publishable_kdwfBTunk1RQxbRVcaXKYg_5M2zlxdH"
-          status=$(curl -s -o /tmp/body -w "%{http_code}" \
+          # 새 키 형식은 apikey + Authorization: Bearer 둘 다 요구할 수 있음.
+          # 프로젝트가 깨어나는 중이면 일시적 5xx가 날 수 있어 재시도한다.
+          status=$(curl -sS --max-time 30 --retry 4 --retry-delay 5 --retry-all-errors \
+            -o /tmp/body -w "%{http_code}" \
             -H "apikey: ${APIKEY}" \
-            "${SUPABASE_URL}/rest/v1/app_states?select=id&limit=1")
+            -H "Authorization: Bearer ${APIKEY}" \
+            "${SUPABASE_URL}/rest/v1/app_states?select=id&limit=1") || status="000"
           echo "HTTP ${status}"
-          cat /tmp/body || true
-          # 200(성공)·401/403(RLS 차단)이라도 게이트웨이/DB에 도달했으면 활동으로 집계됨
+          cat /tmp/body 2>/dev/null || true
+          echo
+          # 2xx/3xx/4xx = Supabase 게이트웨이·DB에 도달 → 활동으로 집계됨(keep-alive 성공)
+          # 5xx·000 = 연결 실패/일시정지 의심 → 실패로 표시해 알림
           case "${status}" in
-            2*|401|403) echo "Keep-alive OK" ;;
-            *) echo "Supabase unreachable (paused?)"; exit 1 ;;
+            2*|3*|4*) echo "Supabase 도달 확인 (HTTP ${status}) — Keep-alive OK" ;;
+            *) echo "Supabase 도달 실패 (HTTP ${status}) — 일시정지/다운 의심"; exit 1 ;;
           esac
 
       - name: Keep schedule alive (prevent 60-day auto-disable)
