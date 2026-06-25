@@ -7544,6 +7544,19 @@ body {
     gap: 12px;
   }
 
+  /* 상단 Don't Forget: 폰에선 한 줄·소형으로 (위아래 공간 절약) */
+  .dont-forget-wrap { gap: 2px !important; }
+  .dont-forget-field {
+    gap: 6px !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+  .dont-forget-field span { font-size: 11px !important; }
+  .dont-forget-field input {
+    min-height: 30px !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+  }
+
   /* --- 주간: 7일을 한 화면에 --- */
   .week-sheet .panel-body {
     display: flex;
@@ -7644,19 +7657,26 @@ body {
   .month-board .month-calendar-wrap { order: 0; }
   .month-board .month-week-summaries { order: 1; }
 
+  /* 중복되는 패널 헤더(월간 제목/부제)는 폰에서 숨겨 공간 확보 — 제목은 상단바에 이미 있음 */
+  .month-main-panel > .panel-header { display: none !important; }
+
   .month-scroll { overflow: visible !important; }
+  /* 6주 그리드가 화면 높이를 채우도록: 머리행 auto + 6주행 균등분배 */
   .month-grid {
     min-width: 0 !important;
     width: 100%;
-    gap: 2px !important;
+    gap: 0 !important;
+    grid-template-rows: auto repeat(6, 1fr) !important;
+    height: clamp(330px, calc(100svh - 190px), 760px) !important;
   }
   .month-grid .month-head {
     font-size: 10px;
     padding: 2px 0;
   }
   .month-grid .month-cell {
-    min-height: clamp(40px, calc((100svh - 240px) / 7), 96px) !important;
+    min-height: 0 !important;
     padding: 2px;
+    overflow: hidden;
   }
   .month-grid .month-number { gap: 1px; }
   .month-grid .month-date-pill { font-size: 11px; }
