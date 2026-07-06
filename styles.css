@@ -8286,6 +8286,153 @@ h1, h2, h3, h4,
   }
 }
 
+/* ===== 가이드 탭: 탭별 상세 사용 설명서 ===== */
+
+.guide-tab-details {
+  display: grid;
+  gap: 10px;
+}
+
+.guide-tab-detail {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.guide-tab-detail summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.guide-tab-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.guide-tab-detail summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.guide-tab-detail[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.guide-tab-detail[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-tab-tag {
+  flex: none;
+  min-width: 52px;
+  text-align: center;
+  color: var(--teal);
+  border-color: var(--teal);
+  font-weight: 650;
+}
+
+.guide-tab-tagline {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.guide-tab-body {
+  padding: 12px 14px 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.guide-tab-body em {
+  font-style: normal;
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.guide-when {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.guide-when em {
+  background: rgba(38, 139, 210, 0.16);
+  color: var(--blue);
+}
+
+.guide-how {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.guide-how li::marker {
+  color: var(--teal);
+  font-weight: 650;
+}
+
+.guide-example {
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: rgba(147, 161, 161, 0.07);
+}
+
+.guide-example em {
+  background: rgba(42, 161, 152, 0.16);
+  color: var(--teal);
+}
+
+.guide-example ul {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.guide-tip {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.guide-tip em {
+  background: rgba(181, 137, 0, 0.18);
+  color: var(--amber);
+}
+
+@media (max-width: 720px) {
+  .guide-tab-detail summary {
+    padding: 11px 12px;
+  }
+
+  .guide-tab-body {
+    padding: 11px 12px 13px;
+  }
+}
+
+/* 터치 기기에서 iOS 자동 확대(입력 폰트 16px 미만) 방지 */
 @media (max-width: 1100px) {
   .field input,
   .field textarea,
