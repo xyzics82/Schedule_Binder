@@ -28,11 +28,15 @@
   --highlight-soft: rgba(181, 137, 0, 0.22);
   --shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
   --radius: 8px;
-  --font: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -40,7 +44,12 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
-  letter-spacing: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -115,7 +124,7 @@ button {
 .brand-title {
   margin: 0;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .brand-subtitle {
@@ -154,7 +163,7 @@ button {
   color: var(--teal);
   background: rgba(15, 118, 110, 0.08);
   border-color: rgba(15, 118, 110, 0.18);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .nav-icon {
@@ -166,7 +175,7 @@ button {
   border-radius: 7px;
   color: currentColor;
   background: #ffffff;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .sidebar-footer {
@@ -246,7 +255,7 @@ button {
 .dont-forget-field span {
   color: var(--base1);
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -259,7 +268,7 @@ button {
   background: var(--base03);
   color: var(--ink);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .date-chip {
@@ -271,7 +280,7 @@ button {
   border-radius: var(--radius);
   background: #ffffff;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .icon-btn,
@@ -291,7 +300,7 @@ button {
 .icon-btn {
   width: 36px;
   padding: 0;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .text-btn.primary,
@@ -412,7 +421,7 @@ button {
 .field label {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .field input,
@@ -494,7 +503,7 @@ button {
 .lane-title {
   color: var(--quiet);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .line-placeholder {
@@ -517,7 +526,7 @@ button {
   background: #ffffff;
   color: var(--ink);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .plan-line.is-executed {
@@ -567,7 +576,7 @@ button {
 .actual-input.is-executed {
   border-color: #d5df49;
   background: var(--highlight);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .list {
@@ -608,7 +617,7 @@ button {
   background: var(--base03);
   color: var(--base1);
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .status-select.is-done {
@@ -675,7 +684,7 @@ button {
 .row-title {
   margin: 0;
   overflow-wrap: anywhere;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .row-meta {
@@ -708,7 +717,7 @@ button {
   background: var(--panel-soft);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .week-board {
@@ -764,7 +773,7 @@ button {
   border-radius: 7px;
   background: var(--panel);
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .mode-toggle button.is-active {
@@ -825,14 +834,14 @@ button {
 
 .day-name {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.08;
 }
 
 .day-date {
   color: var(--muted);
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.08;
 }
 
@@ -845,7 +854,7 @@ button {
   background: rgba(42, 161, 152, 0.14);
   color: var(--teal);
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -879,7 +888,7 @@ button {
   border-radius: 7px;
   background: var(--teal);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .day-check {
@@ -983,7 +992,7 @@ button {
   background: rgba(249, 250, 248, 0.92);
   color: var(--quiet);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   pointer-events: none;
 }
 
@@ -1235,7 +1244,7 @@ button {
   background: var(--panel-soft);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   text-align: center;
 }
 
@@ -1259,7 +1268,7 @@ button {
   justify-content: space-between;
   gap: 6px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .month-dots {
@@ -1308,7 +1317,7 @@ button {
   min-width: 0;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .stat-bar {
@@ -1363,7 +1372,7 @@ button {
   gap: 8px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .today-plan-chip,
@@ -1387,7 +1396,7 @@ button {
 .today-actual-chip span {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .today-plan-chip strong,
@@ -1463,7 +1472,7 @@ button {
 .note-label {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .block-memo {
@@ -1549,7 +1558,7 @@ button {
   color: var(--muted);
   background: var(--panel-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .photo-add input {
@@ -1581,7 +1590,7 @@ button {
   border-radius: 999px;
   background: var(--teal);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .guide-card h3 {
@@ -1984,7 +1993,7 @@ input[type="time"] {
 }
 
 .actual-input.is-executed {
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .highlight-note {
@@ -2255,7 +2264,7 @@ body {
   background: var(--base03);
   color: var(--base1);
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .sidebar-mode button.is-active {
@@ -2354,7 +2363,7 @@ body {
   gap: 8px;
   color: var(--muted);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .popover-title-field textarea {
@@ -2388,7 +2397,7 @@ body {
   gap: 7px;
   color: var(--muted);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .popover-time-grid input {
@@ -2400,7 +2409,7 @@ body {
   background: var(--base03);
   color: var(--ink);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 650;
   outline: 0;
 }
 
@@ -2426,7 +2435,7 @@ body {
   background: rgba(0, 43, 54, 0.32);
   color: var(--base1);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .popover-categories .category-swatch {
@@ -2589,7 +2598,7 @@ body {
   background: rgba(42, 161, 152, 0.16);
   color: var(--teal);
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 700;
   text-align: center;
   cursor: pointer;
 }
@@ -2893,7 +2902,7 @@ body {
   background: rgba(42, 161, 152, 0.16);
   color: var(--teal);
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .today-schedule-title {
@@ -2955,7 +2964,7 @@ body {
 .photo-strip figure.file-attachment a {
   color: var(--ink);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 650;
   text-decoration: none;
 }
 
@@ -3210,7 +3219,7 @@ body {
 .day-name,
 .day-date {
   font-size: 26px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.08;
 }
 
@@ -3404,7 +3413,7 @@ body {
   color: var(--muted);
   font-size: 20px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .month-page {
@@ -3540,7 +3549,7 @@ body {
 .month-check-count {
   color: rgba(7, 54, 66, 0.72);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .month-checks {
@@ -3593,7 +3602,7 @@ body {
   padding-left: 2px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.2;
 }
 
@@ -5238,7 +5247,7 @@ button.status-toggle,
 .topbar-title-date {
   color: var(--muted);
   font-size: 0.55em;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1;
 }
 
@@ -5281,7 +5290,7 @@ button.status-toggle,
     var(--teal) !important;
   color: var(--base03) !important;
   font-size: 15px !important;
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   line-height: 1 !important;
   box-shadow: inset 0 -1px 0 rgba(0, 43, 54, 0.32), 0 4px 10px rgba(0, 0, 0, 0.18) !important;
 }
@@ -5443,7 +5452,7 @@ button.status-toggle,
   background: rgba(7, 54, 66, 0.78) !important;
   color: var(--muted) !important;
   font-size: 15px !important;
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   text-shadow: none !important;
 }
 
@@ -5554,7 +5563,7 @@ button.status-toggle,
   background: var(--base03) !important;
   color: var(--base1) !important;
   font-size: 14px !important;
-  font-weight: 900 !important;
+  font-weight: 700 !important;
 }
 
 .month-check-count {
@@ -5582,7 +5591,7 @@ button.status-toggle,
   background: rgba(7, 54, 66, 0.58) !important;
   color: var(--ink) !important;
   font-size: 12px !important;
-  font-weight: 800 !important;
+  font-weight: 650 !important;
   line-height: 1.1 !important;
 }
 
@@ -5876,7 +5885,7 @@ button.status-toggle,
   gap: 7px;
   color: var(--base1);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .auth-form input {
@@ -5935,7 +5944,7 @@ button.status-toggle,
   color: var(--base1);
   background: rgba(0, 43, 54, 0.28);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6073,7 +6082,7 @@ button.status-toggle,
 .today-detail-check-head span {
   color: var(--muted);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .today-detail-checks .daily-check-form {
@@ -6105,7 +6114,7 @@ button.status-toggle,
   padding: 0 !important;
   font-size: 24px !important;
   line-height: 1 !important;
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   text-align: center !important;
 }
 
@@ -6164,7 +6173,7 @@ button.status-toggle,
   border-radius: 8px;
   background: var(--base03);
   color: var(--ink);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .plan-copy-head button {
@@ -6204,7 +6213,7 @@ button.status-toggle,
   place-items: center;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .plan-copy-day {
@@ -6216,7 +6225,7 @@ button.status-toggle,
   background: var(--base03);
   color: var(--ink);
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .plan-copy-day:hover {
@@ -6261,7 +6270,7 @@ button.status-toggle,
 .category-guide-row span {
   color: var(--ink);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .category-guide-row p {
@@ -6274,6 +6283,32 @@ button.status-toggle,
 @media (max-width: 720px) {
   .category-guide-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 탭 안내표 (가이드): 3열 구성 */
+.tab-guide-table .tab-guide-row,
+.tab-guide-table .category-guide-head {
+  grid-template-columns: 68px minmax(120px, 0.28fr) minmax(0, 1fr);
+}
+
+.tab-guide-summary {
+  color: var(--teal) !important;
+  font-size: 14px !important;
+}
+
+@media (max-width: 720px) {
+  .tab-guide-table .tab-guide-row,
+  .tab-guide-table .category-guide-head {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .tab-guide-table .tab-guide-row p {
+    grid-column: 1 / -1;
+  }
+
+  .tab-guide-table .category-guide-head strong:last-child {
+    display: none;
   }
 }
 
@@ -6491,7 +6526,7 @@ body {
   border-style: dashed;
   color: var(--teal);
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -6552,7 +6587,7 @@ body {
 .share-format-btn span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.2;
 }
 
@@ -6578,7 +6613,7 @@ body {
   background: color-mix(in srgb, var(--base02) 70%, var(--base03));
   color: var(--base1);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .share-actions {
@@ -6592,7 +6627,7 @@ body {
   min-height: 36px;
   padding: 0 14px;
   border-radius: 8px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .share-primary {
@@ -6754,7 +6789,7 @@ body {
 .popover-title-row label {
   color: var(--muted);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .strike-text-btn {
@@ -7004,7 +7039,7 @@ body {
   gap: 7px;
   color: var(--base1);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -7040,7 +7075,7 @@ body {
 .dual-stat-line strong {
   color: var(--base1);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
   text-align: right;
   white-space: nowrap;
 }
@@ -7592,7 +7627,7 @@ body {
   .week-planner .day-date-line {
     font-size: 10px;
     line-height: 1.1;
-    font-weight: 700;
+    font-weight: 600;
   }
   .week-planner .day-mode-chip {
     font-size: 8px;
@@ -7625,11 +7660,11 @@ body {
   .week-planner .calendar-segment .segment-head { gap: 2px; line-height: 1.05; }
   .week-planner .calendar-segment .segment-head strong {
     font-size: 9px !important;
-    font-weight: 800;
+    font-weight: 650;
   }
   .week-planner .calendar-segment .segment-head span {
     font-size: 8px !important;
-    font-weight: 700;
+    font-weight: 600;
   }
   .week-planner .actual-segment .segment-head span { font-size: 8px !important; }
   .week-planner .calendar-segment .segment-title { -webkit-line-clamp: 1; }
@@ -7683,4 +7718,590 @@ body {
   .month-grid .month-check-count { font-size: 8px; }
   /* 좁은 셀: 체크 칩 텍스트는 숨기고 완료/전체 카운트만 표시 */
   .month-grid .month-cell .month-checks { display: none !important; }
+}
+
+/* ===== Typography refinement (2026-07 업그레이드) =====
+ * Pretendard Variable 기준 굵기 체계: 700(디스플레이) / 650(제목) / 600(라벨·버튼) / 400(본문)
+ * 시간·숫자는 tabular-nums로 정렬을 맞춘다. */
+
+h1, h2, h3, h4,
+.brand-title,
+.panel-title,
+.topbar-title,
+.day-name,
+.day-date {
+  letter-spacing: -0.02em;
+}
+
+.panel-subtitle,
+.brand-subtitle,
+.row-meta,
+.note-body {
+  letter-spacing: -0.005em;
+  line-height: 1.55;
+}
+
+.time-axis,
+.axis-label,
+.time-segment time,
+.segment-time,
+.stat-value,
+.mini-stat strong,
+.dual-stat-line strong,
+.month-check-count,
+.sample-plan-rail,
+.date-chip {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+::placeholder {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+/* ===== 수집함 (Inbox) ===== */
+
+.inbox-capture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.inbox-capture input,
+.inbox-capture select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.inbox-capture input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.inbox-row {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: start;
+}
+
+.inbox-row.is-done .row-title {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.inbox-check {
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--green);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.inbox-check.is-checked {
+  border-color: var(--green);
+  background: rgba(133, 153, 0, 0.16);
+}
+
+.inbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.text-btn.tiny {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.done-fold {
+  margin-top: 14px;
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+
+.done-fold summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.done-fold .list {
+  margin-top: 10px;
+}
+
+.tab-help-list {
+  display: grid;
+  gap: 10px;
+}
+
+.tab-help-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.tab-help-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.tab-help-footnote {
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ===== 연구 (Research) ===== */
+
+.research-block {
+  border-left: 3px solid var(--kind-color, var(--line-strong));
+}
+
+.research-block.is-done {
+  opacity: 0.6;
+}
+
+.research-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.research-title-line .row-title {
+  margin: 0;
+}
+
+.kind-tag {
+  border-color: var(--kind-color, var(--line));
+  color: var(--kind-color, var(--muted));
+  white-space: nowrap;
+}
+
+.dday-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(147, 161, 161, 0.16);
+  color: var(--base1);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.dday-badge.is-urgent {
+  background: rgba(181, 137, 0, 0.2);
+  color: var(--amber);
+}
+
+.dday-badge.is-overdue {
+  background: rgba(220, 50, 47, 0.18);
+  color: var(--red);
+}
+
+.next-action-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.next-action-line span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.next-action-input {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.next-action-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--teal);
+}
+
+.tab-help-details {
+  margin-top: 14px;
+}
+
+.tab-help-details ul {
+  margin: 8px 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ===== 루틴 (Routine) ===== */
+
+.routine-table {
+  display: grid;
+  gap: 6px;
+  min-width: 560px;
+}
+
+.routine-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) repeat(7, minmax(40px, 48px)) 56px;
+  gap: 6px;
+  align-items: center;
+}
+
+.routine-head {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.routine-day-head {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 4px 0;
+  border-radius: 7px;
+}
+
+.routine-day-head em {
+  font-style: normal;
+  font-weight: 650;
+}
+
+.routine-day-head span {
+  font-size: 10px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.routine-day-head.is-today {
+  background: var(--highlight-soft);
+  color: var(--amber);
+}
+
+.routine-count-head {
+  text-align: center;
+}
+
+.routine-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.routine-name-cell em {
+  font-style: normal;
+  font-size: 16px;
+}
+
+.routine-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.routine-delete {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.routine-row:hover .routine-delete,
+.routine-name-cell:focus-within .routine-delete {
+  opacity: 0.8;
+}
+
+.routine-cell {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.routine-cell.is-today {
+  border-color: var(--amber);
+}
+
+.routine-cell.is-checked {
+  border-color: var(--green);
+  background: rgba(133, 153, 0, 0.2);
+}
+
+.routine-cell:active {
+  transform: scale(0.94);
+}
+
+.routine-count {
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 999px;
+  background: rgba(147, 161, 161, 0.14);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.routine-count.is-hit {
+  background: rgba(133, 153, 0, 0.2);
+  color: var(--green);
+}
+
+.routine-emoji-field {
+  max-width: 90px;
+}
+
+/* ===== 오늘 탭 자전거 카드 ===== */
+
+.bike-panel .panel-header {
+  align-items: center;
+}
+
+.bike-body {
+  display: grid;
+  gap: 10px;
+}
+
+.bike-ride-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #fc4c02; /* Strava orange */
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.bike-ride-card.is-manual {
+  border-left-color: var(--blue);
+}
+
+.bike-ride-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bike-ride-main strong {
+  font-size: 13px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bike-ride-main span {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bike-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.bike-manual-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+
+.bike-manual-form input {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.bike-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* ===== 모바일 하단 탭바 ===== */
+
+.mobile-nav {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .mobile-nav {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+  }
+
+  .mobile-nav-bar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .mobile-nav-btn {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    padding: 7px 2px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--base01);
+    min-height: 48px;
+  }
+
+  .mobile-nav-icon {
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1;
+  }
+
+  .mobile-nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-nav-btn.is-active {
+    background: rgba(42, 161, 152, 0.14);
+    color: var(--teal);
+  }
+
+  .mobile-more-sheet {
+    position: absolute;
+    right: 8px;
+    bottom: calc(100% + 6px);
+    display: grid;
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: var(--shadow);
+    min-width: 140px;
+  }
+
+  .mobile-more-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--base01);
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 44px;
+  }
+
+  .mobile-more-btn.is-active {
+    background: rgba(42, 161, 152, 0.14);
+    color: var(--teal);
+  }
+
+  .sidebar .nav-list {
+    display: none;
+  }
+
+  .sidebar {
+    gap: 10px;
+    padding: 10px 14px;
+    justify-content: space-between;
+  }
+
+  .sidebar-mode {
+    margin-left: auto;
+  }
+
+  .workspace {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .routine-table {
+    min-width: 520px;
+  }
+
+  .routine-row {
+    grid-template-columns: minmax(110px, 1fr) repeat(7, minmax(34px, 1fr)) 48px;
+  }
+
+  .routine-cell {
+    height: 38px;
+  }
+
+  .inbox-capture {
+    grid-template-columns: 1fr;
+  }
+
+  .tab-help-row {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  .field input,
+  .field textarea,
+  .field select,
+  .inbox-capture input,
+  .inbox-capture select,
+  .bike-manual-form input,
+  .next-action-input,
+  .settings-field input,
+  .dont-forget-input,
+  .task-title-input,
+  .daily-check-title {
+    font-size: 16px;
+  }
+
+  .routine-delete {
+    opacity: 0.6;
+  }
 }

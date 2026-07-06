@@ -44,15 +44,32 @@
       icon: "W",
       tooltip: "주간 작성 방법: 먼저 Plan으로 계획 시간을 만들고, Do에서 계획을 눌러 실행을 작성합니다. 실행을 저장하면 Do가 크게 보이고 Plan은 좁은 시간 표시로 옆에 붙습니다."
     },
-    { id: "today", label: "오늘", icon: "T" },
-    { id: "month", label: "월간", icon: "M" },
-    { id: "goals", label: "목표", icon: "G" },
-    { id: "projects", label: "프로젝트", icon: "P" },
-    { id: "binder", label: "서브 바인더", icon: "B" },
-    { id: "review", label: "리뷰", icon: "R" },
-    { id: "stats", label: "통계", icon: "S" },
+    { id: "today", label: "오늘", icon: "T", tooltip: "오늘 하루의 계획·실행·체크·자전거·회고를 한 화면에서 봅니다." },
+    { id: "month", label: "월간", icon: "M", tooltip: "한 달의 큰 흐름과 마감을 봅니다." },
+    { id: "inbox", label: "수집함", icon: "✦", tooltip: "떠오르는 아이디어, 읽을 논문, 할 일을 일단 여기에 던져두세요. 정리는 나중에." },
+    { id: "research", label: "연구", icon: "R", tooltip: "과제·실험·논문·발표를 마감과 다음 행동 중심으로 관리합니다." },
+    { id: "routine", label: "루틴", icon: "∞", tooltip: "자전거, 아이들과 공부처럼 매주 반복할 활동을 체크합니다." },
+    { id: "stats", label: "통계", icon: "S", tooltip: "시간이 어디에 쓰였는지, 루틴을 얼마나 지켰는지 확인합니다." },
     { id: "guide", label: "가이드", icon: "?" },
     { id: "settings", label: "설정", icon: "⚙" }
+  ];
+
+  const mobileNavIds = ["week", "today", "month", "inbox", "research", "routine"];
+
+  const researchKinds = [
+    { id: "grant", label: "과제·보고서", color: "#f2c94c" },
+    { id: "experiment", label: "실험·분석", color: "#4dabf7" },
+    { id: "paper", label: "논문 작성", color: "#2ec27e" },
+    { id: "talk", label: "학회·발표", color: "#ff922b" },
+    { id: "etc", label: "기타", color: "#93a1a1" }
+  ];
+
+  const inboxKinds = [
+    { id: "idea", label: "아이디어", hint: "연구 아이디어, 실험 개선점" },
+    { id: "paper", label: "읽을 논문", hint: "제목·DOI·링크만 적어도 충분" },
+    { id: "todo", label: "할 일", hint: "아직 날짜를 못 정한 일" },
+    { id: "kids", label: "아이·가족", hint: "아이 공부 소재, 가족 약속" },
+    { id: "memo", label: "메모", hint: "회의, 대화, 기타 기록" }
   ];
 
   let state = loadState();
@@ -237,14 +254,6 @@
     return legacyMap[id] || "mainWork";
   }
 
-  function goalById(id) {
-    return state.goals.find((item) => item.id === id);
-  }
-
-  function projectById(id) {
-    return state.projects.find((item) => item.id === id);
-  }
-
   function normalizeCheckStatus(item) {
     const status = typeof item === "string" ? item : item?.status;
     if (status === "delegated") return "postponed";
@@ -316,7 +325,7 @@
     } catch (error) {
       console.warn("저장 데이터를 불러오지 못했습니다.", error);
     }
-    return createSeedState();
+    return normalizeState(createSeedState());
   }
 
   function loadAuthSession() {
@@ -499,6 +508,7 @@
   }
 
   async function initializeApp() {
+    stravaInit(); // 스트라바 OAuth 리다이렉트 처리 + 자동 동기화 (로그인 여부와 무관)
     if (!authSession?.access_token) {
       authStatus = "signed-out";
       render();
@@ -526,18 +536,94 @@
   }
 
   function normalizeState(next) {
+    const viewAlias = { paper: "week", goals: "research", projects: "research", binder: "inbox", review: "today" };
+    const rawView = next.activeView || "week";
     return {
-      activeView: next.activeView === "paper" ? "week" : (next.activeView || "week"),
+      activeView: viewAlias[rawView] || rawView,
       currentDate: next.currentDate || todayISO(),
       goals: Array.isArray(next.goals) ? next.goals : [],
       projects: Array.isArray(next.projects) ? next.projects : [],
+      research: normalizeResearch(next),
+      routines: normalizeRoutines(next.routines),
+      routineChecks: next.routineChecks && typeof next.routineChecks === "object" ? next.routineChecks : {},
       tasks: Array.isArray(next.tasks) ? next.tasks.map(normalizeTask) : [],
       blocks: Array.isArray(next.blocks) ? next.blocks.map(normalizeBlock) : [],
-      notes: Array.isArray(next.notes) ? next.notes : [],
+      notes: Array.isArray(next.notes) ? next.notes.map(normalizeNote) : [],
       reviews: normalizeReviews(next.reviews),
       weekDrawMode: next.weekDrawMode || "plan",
       todayDetailBlockId: next.todayDetailBlockId || "",
       gcalSync: next.gcalSync && typeof next.gcalSync === "object" ? next.gcalSync : {}
+    };
+  }
+
+  // 구 목표/프로젝트 데이터를 연구 항목으로 1회 이전한다 (id 유지 → 할 일/블록 연결 보존).
+  function normalizeResearch(next) {
+    if (Array.isArray(next.research)) return next.research.map(normalizeResearchItem);
+    const migrated = [];
+    (Array.isArray(next.projects) ? next.projects : []).forEach((project) => {
+      migrated.push(normalizeResearchItem({
+        id: project.id,
+        title: project.title,
+        kind: "etc",
+        status: "active",
+        dueDate: project.dueDate || "",
+        nextAction: "",
+        description: project.description || ""
+      }));
+    });
+    (Array.isArray(next.goals) ? next.goals : []).forEach((goal) => {
+      migrated.push(normalizeResearchItem({
+        id: goal.id,
+        title: goal.title,
+        kind: "etc",
+        status: goal.status === "done" ? "done" : "active",
+        dueDate: goal.endDate || "",
+        nextAction: "",
+        description: goal.description || ""
+      }));
+    });
+    return migrated;
+  }
+
+  function normalizeResearchItem(item) {
+    return {
+      id: item.id || uid("research"),
+      title: item.title || "제목 없음",
+      kind: researchKinds.some((kind) => kind.id === item.kind) ? item.kind : "etc",
+      status: item.status === "done" ? "done" : "active",
+      dueDate: item.dueDate || "",
+      nextAction: item.nextAction || "",
+      description: item.description || "",
+      createdAt: item.createdAt || new Date().toISOString()
+    };
+  }
+
+  function defaultRoutines() {
+    return [
+      { id: "routine-bike", name: "자전거 타기", emoji: "🚴", target: 3 },
+      { id: "routine-kids", name: "아이들과 공부", emoji: "📖", target: 5 },
+      { id: "routine-paper", name: "논문·자료 읽기", emoji: "📄", target: 5 },
+      { id: "routine-body", name: "스트레칭·근력", emoji: "💪", target: 3 }
+    ];
+  }
+
+  function normalizeRoutines(routines) {
+    if (!Array.isArray(routines) || !routines.length) return defaultRoutines();
+    return routines.map((routine) => ({
+      id: routine.id || uid("routine"),
+      name: routine.name || "루틴",
+      emoji: routine.emoji || "✓",
+      target: Math.min(7, Math.max(1, Number(routine.target) || 3))
+    }));
+  }
+
+  function normalizeNote(note) {
+    const sourceAlias = { book: "paper", lecture: "memo", meeting: "memo" };
+    const source = sourceAlias[note.source] || note.source;
+    return {
+      ...note,
+      source: inboxKinds.some((kind) => kind.id === source) ? source : "memo",
+      done: Boolean(note.done)
     };
   }
 
@@ -563,7 +649,8 @@
         checks: Array.isArray(log?.checks) ? log.checks.map(normalizeDailyCheck) : [],
         photos: Array.isArray(log?.photos) ? log.photos : [],
         shareDraft: log?.shareDraft || "",
-        shareFormat: shareFormatById(log?.shareFormat).id
+        shareFormat: shareFormatById(log?.shareFormat).id,
+        bike: log?.bike && typeof log.bike === "object" ? log.bike : null
       };
     });
     return {
@@ -808,10 +895,46 @@
           <div class="workspace">${renderActiveView()}</div>
         </main>
       </div>
+      ${renderMobileNav()}
       ${renderSchedulePopup()}
       ${renderPlanCopyPicker()}
     `;
     bindEvents();
+  }
+
+  // 모바일(≤720px) 하단 탭바 — 데스크톱에서는 CSS로 숨긴다.
+  let mobileMoreOpen = false;
+
+  function renderMobileNav() {
+    const mainItems = navItems.filter((item) => mobileNavIds.includes(item.id));
+    const moreItems = navItems.filter((item) => !mobileNavIds.includes(item.id));
+    const moreActive = moreItems.some((item) => item.id === state.activeView);
+    return `
+      <nav class="mobile-nav" aria-label="주요 화면 (모바일)">
+        ${mobileMoreOpen ? `
+          <div class="mobile-more-sheet">
+            ${moreItems.map((item) => `
+              <button class="mobile-more-btn ${state.activeView === item.id ? "is-active" : ""}" data-view="${item.id}">
+                <span class="nav-icon" aria-hidden="true">${esc(item.icon)}</span>
+                <span>${esc(item.label)}</span>
+              </button>
+            `).join("")}
+          </div>
+        ` : ""}
+        <div class="mobile-nav-bar">
+          ${mainItems.map((item) => `
+            <button class="mobile-nav-btn ${state.activeView === item.id ? "is-active" : ""}" data-view="${item.id}">
+              <span class="mobile-nav-icon" aria-hidden="true">${esc(item.icon)}</span>
+              <span class="mobile-nav-label">${esc(item.label)}</span>
+            </button>
+          `).join("")}
+          <button class="mobile-nav-btn ${moreActive || mobileMoreOpen ? "is-active" : ""}" data-mobile-more title="통계·가이드·설정">
+            <span class="mobile-nav-icon" aria-hidden="true">⋯</span>
+            <span class="mobile-nav-label">더보기</span>
+          </button>
+        </div>
+      </nav>
+    `;
   }
 
   function renderAuthScreen() {
@@ -882,7 +1005,7 @@
           <div class="binder-mark" aria-hidden="true"></div>
           <div class="brand-copy">
             <p class="brand-title">Schedule Binder</p>
-            <p class="brand-subtitle">목표, 시간, 기록을 연결하는 자기경영 보드</p>
+            <p class="brand-subtitle">연구·가족·자전거의 시간을 한 바인더에</p>
           </div>
         </div>
         <nav class="nav-list" aria-label="주요 화면">
@@ -1055,14 +1178,23 @@
     if (state.activeView === "month") {
       return `${monthTitle(state.currentDate)} 로드맵`;
     }
+    if (state.activeView === "inbox") {
+      return "판단은 미루고 일단 적어두는 곳 — 비우는 정리는 주간 계획 때 합니다.";
+    }
+    if (state.activeView === "research") {
+      return "마감과 '다음 행동'만 분명하면 연구는 굴러갑니다.";
+    }
+    if (state.activeView === "routine") {
+      return "매주 반복하는 활동을 요일 표에 체크합니다.";
+    }
     if (state.activeView === "stats") {
       return "계획과 실행 시간의 흐름을 확인합니다.";
     }
     if (state.activeView === "guide") {
-      return "주요 기능의 사용 예시를 한곳에서 봅니다.";
+      return "각 탭에 무엇을 쓰는지, 사용 예시를 한곳에서 봅니다.";
     }
     if (state.activeView === "settings") {
-      return "Google 캘린더 연동과 앱 환경을 관리합니다.";
+      return "Google 캘린더·스트라바 연동과 앱 환경을 관리합니다.";
     }
     return "오늘의 실행과 다음 리뷰까지 한 번에 봅니다.";
   }
@@ -1079,14 +1211,12 @@
         return renderWeekView();
       case "month":
         return renderMonthView();
-      case "goals":
-        return renderGoalsView();
-      case "projects":
-        return renderProjectsView();
-      case "binder":
-        return renderBinderView();
-      case "review":
-        return renderReviewView();
+      case "inbox":
+        return renderInboxView();
+      case "research":
+        return renderResearchView();
+      case "routine":
+        return renderRoutineView();
       case "stats":
         return renderStatsView();
       case "guide":
@@ -1114,6 +1244,7 @@
         </section>
         <aside class="today-side">
           ${renderTodayDetailPanel(selectedBlock, date, dailyChecks)}
+          ${renderTodayBikePanel(date, log)}
           ${renderTodayMemoPanel(selectedBlock)}
           ${renderTodayJournalPanel(date, log)}
           ${renderTodaySharePanel(date, log)}
@@ -1207,6 +1338,66 @@
         <div class="list today-check-list">
           ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<div class="empty">오늘 체크박스가 없습니다.</div>`}
         </div>
+      </div>
+    `;
+  }
+
+  // ===== 오늘 탭: 자전거 카드 (가민 커넥트 → 스트라바 → 이 앱) =====
+
+  function renderTodayBikePanel(date, log) {
+    const connected = stravaConnected();
+    const rides = connected ? bikeRidesForDate(date) : [];
+    const manual = log.bike;
+    return `
+      <section class="panel bike-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🚴 자전거</h2>
+            <p class="panel-subtitle">${connected
+              ? `스트라바 연동 중${strava.lastSyncAt ? ` · 마지막 동기화 ${esc(stravaTimeLabel(strava.lastSyncAt))}` : ""}`
+              : "가민으로 기록하고, 스트라바로 모으고, 여기서 하루와 함께 봅니다."}</p>
+          </div>
+          ${connected ? `<button type="button" class="icon-btn" data-strava-sync title="스트라바에서 새 라이딩 가져오기">↻</button>` : ""}
+        </div>
+        <div class="panel-body bike-body">
+          ${rides.length ? rides.map(renderBikeRideCard).join("") : ""}
+          ${!rides.length && manual ? `
+            <div class="bike-ride-card is-manual">
+              <div class="bike-ride-main">
+                <strong>직접 기록한 라이딩</strong>
+                <span>${esc(String(manual.km))}km · ${esc(String(manual.min))}분</span>
+              </div>
+              <button type="button" class="icon-btn" data-bike-manual-clear="${attr(date)}" title="기록 지우기">×</button>
+            </div>
+          ` : ""}
+          ${!rides.length && !manual ? `
+            <p class="bike-empty">${connected
+              ? "이 날짜의 라이딩 기록이 없습니다. 라이딩 후 ↻를 눌러 가져오세요."
+              : "아직 스트라바가 연결되지 않았습니다. 아래에 직접 적거나, 설정에서 연결하세요."}</p>
+            <form class="bike-manual-form" data-form="bike-manual" data-bike-date="${attr(date)}">
+              <input name="km" type="number" step="0.1" min="0" inputmode="decimal" placeholder="거리 km" required>
+              <input name="min" type="number" step="1" min="0" inputmode="numeric" placeholder="시간 분" required>
+              <button class="text-btn" type="submit">기록</button>
+            </form>
+          ` : ""}
+          <div class="bike-links">
+            <a class="text-btn tiny" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">가민 커넥트 열기</a>
+            <a class="text-btn tiny" href="https://www.strava.com/dashboard" target="_blank" rel="noopener">스트라바 열기</a>
+            ${connected ? "" : `<button type="button" class="text-btn tiny primary" data-view="settings">스트라바 연결하기</button>`}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderBikeRideCard(ride) {
+    return `
+      <div class="bike-ride-card">
+        <div class="bike-ride-main">
+          <strong>${esc(ride.name)}</strong>
+          <span>${ride.distanceKm.toFixed(1)}km · ${esc(minutesToText(ride.movingMin))} · ${ride.avgSpeedKmh.toFixed(1)}km/h${ride.elevM ? ` · ↑${Math.round(ride.elevM)}m` : ""}</span>
+        </div>
+        <a class="text-btn tiny" href="https://www.strava.com/activities/${attr(String(ride.id))}" target="_blank" rel="noopener" title="스트라바에서 상세 보기">보기</a>
       </div>
     `;
   }
@@ -1550,15 +1741,13 @@
   }
 
   function renderTaskRow(task, options = {}) {
-    const goal = goalById(task.goalId);
-    const project = projectById(task.projectId);
+    const linked = researchById(task.projectId) || researchById(task.goalId);
     const status = normalizeCheckStatus(task);
     const metaParts = [];
     if (!options.hidePeriod) {
       metaParts.push(task.weekStart ? `${task.weekStart} 주간` : (task.dueDate || "마감 없음"));
     }
-    if (!options.hideMeta && project) metaParts.push(project.title);
-    if (!options.hideMeta && goal) metaParts.push(goal.title);
+    if (!options.hideMeta && linked) metaParts.push(linked.title);
     const meta = metaParts.join(" · ");
     return `
       <div class="list-row check-row ${status === "done" ? "is-done" : ""} ${checkStatusClass(task)}">
@@ -2044,282 +2233,331 @@
     return `${m}m`;
   }
 
-  function renderGoalsView() {
+  // ===== 수집함: 판단 없이 일단 적는 빠른 캡처 =====
+
+  function inboxKindById(id) {
+    return inboxKinds.find((kind) => kind.id === id) || inboxKinds[inboxKinds.length - 1];
+  }
+
+  function renderInboxView() {
+    const open = state.notes.filter((note) => !note.done);
+    const done = state.notes.filter((note) => note.done);
     return `
       <div class="view-grid">
         <section class="panel sheet">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">목표 목록</h2>
-              <p class="panel-subtitle">연간 방향을 월간, 주간, 일간 행동으로 내려봅니다.</p>
+              <h2 class="panel-title">수집함</h2>
+              <p class="panel-subtitle">머릿속에 떠오른 것을 3초 안에 적어두는 곳입니다. 분류나 날짜는 나중에 정해도 됩니다.</p>
             </div>
           </div>
           <div class="panel-body">
-            <div class="list">
-              ${state.goals.length ? state.goals.map(renderGoalRow).join("") : `<div class="empty">아직 목표가 없습니다.</div>`}
+            <form class="inbox-capture" data-form="inbox">
+              <input name="title" required placeholder="예: OO 논문 초록 확인 / 수아 분수 문제집 알아보기" autocomplete="off">
+              <select name="source" title="종류">
+                ${inboxKinds.map((kind) => `<option value="${attr(kind.id)}">${esc(kind.label)}</option>`).join("")}
+              </select>
+              <button class="text-btn primary" type="submit">담기</button>
+            </form>
+            <div class="list inbox-list">
+              ${open.length ? open.map(renderInboxRow).join("") : `<div class="empty">수집함이 비어 있습니다. 떠오르면 바로 담아두세요.</div>`}
             </div>
+            ${done.length ? `
+              <details class="done-fold">
+                <summary>처리한 항목 ${done.length}개</summary>
+                <div class="list">${done.map(renderInboxRow).join("")}</div>
+              </details>
+            ` : ""}
           </div>
         </section>
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">목표 추가</h2>
-              <p class="panel-subtitle">구체적인 기간과 영역을 함께 적습니다.</p>
+              <h2 class="panel-title">이 탭에 무엇을 쓰나요?</h2>
+              <p class="panel-subtitle">쓸까 말까 고민되면 일단 담습니다. 주간 계획을 세울 때 한 번에 비우면 됩니다.</p>
             </div>
           </div>
           <div class="panel-body">
-            <form class="form-grid" data-form="goal">
-              <div class="field">
-                <label for="goal-title">목표명</label>
-                <input id="goal-title" name="title" required placeholder="예: 90일 동안 시간 기록 습관 만들기">
-              </div>
-              <div class="form-row">
-                <div class="field">
-                  <label for="goal-category">영역</label>
-                  <input id="goal-category" name="category" placeholder="성장, 건강, 업무">
+            <div class="tab-help-list">
+              ${inboxKinds.map((kind) => `
+                <div class="tab-help-row">
+                  <span class="tag">${esc(kind.label)}</span>
+                  <p>${esc(kind.hint)}</p>
                 </div>
-                <div class="field">
-                  <label for="goal-end">마감</label>
-                  <input id="goal-end" name="endDate" type="date" value="${attr(addDays(state.currentDate, 90))}">
-                </div>
-              </div>
-              <div class="field">
-                <label for="goal-description">설명</label>
-                <textarea id="goal-description" name="description" placeholder="왜 중요한지, 어떻게 측정할지 적어보세요."></textarea>
-              </div>
-              <button class="text-btn primary" type="submit">목표 추가</button>
-            </form>
+              `).join("")}
+            </div>
+            <p class="tab-help-footnote">항목 옆 <strong>연구로</strong> 버튼을 누르면 연구 탭의 관리 항목으로 승격됩니다. 끝난 항목은 ✓로 접어둡니다.</p>
           </div>
         </section>
       </div>
     `;
   }
 
-  function renderGoalRow(goal) {
-    const relatedTasks = state.tasks.filter((task) => task.goalId === goal.id);
-    const done = relatedTasks.filter((task) => task.done).length;
-    const progress = relatedTasks.length ? Math.round((done / relatedTasks.length) * 100) : 0;
+  function renderInboxRow(note) {
+    const kind = inboxKindById(note.source);
     return `
-      <div class="list-row compact">
-        <div>
-          <p class="row-title">${esc(goal.title)}</p>
-          <p class="row-meta">${esc(goal.category || "미분류")} · 마감 ${esc(goal.endDate || "없음")} · 할 일 ${done}/${relatedTasks.length}</p>
-          <div class="progress" style="margin-top: 8px;"><span style="width:${progress}%"></span></div>
-          ${goal.description ? `<p class="note-body">${esc(goal.description)}</p>` : ""}
-        </div>
-        <button class="icon-btn" data-delete-goal="${attr(goal.id)}" title="목표 삭제">×</button>
-      </div>
-    `;
-  }
-
-  function renderProjectsView() {
-    return `
-      <div class="view-grid">
-        <section class="panel sheet">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">프로젝트</h2>
-              <p class="panel-subtitle">목표를 실행 가능한 작업 묶음으로 관리합니다.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="list">
-              ${state.projects.length ? state.projects.map(renderProjectBlock).join("") : `<div class="empty">아직 프로젝트가 없습니다.</div>`}
-            </div>
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">프로젝트 추가</h2>
-              <p class="panel-subtitle">목표와 연결하면 주간 계획에서 함께 보입니다.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <form class="form-grid" data-form="project">
-              <div class="field">
-                <label for="project-title">프로젝트명</label>
-                <input id="project-title" name="title" required placeholder="예: 상반기 포트폴리오 정리">
-              </div>
-              <div class="form-row">
-                <div class="field">
-                  <label for="project-goal">연결 목표</label>
-                  <select id="project-goal" name="goalId">
-                    <option value="">연결 없음</option>
-                    ${state.goals.map((goal) => `<option value="${attr(goal.id)}">${esc(goal.title)}</option>`).join("")}
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="project-due">마감</label>
-                  <input id="project-due" name="dueDate" type="date" value="${attr(addDays(state.currentDate, 14))}">
-                </div>
-              </div>
-              <div class="field">
-                <label for="project-description">설명</label>
-                <textarea id="project-description" name="description" placeholder="결과물과 완료 기준을 적습니다."></textarea>
-              </div>
-              <button class="text-btn primary" type="submit">프로젝트 추가</button>
-            </form>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
-  function renderProjectBlock(project) {
-    const tasks = state.tasks.filter((task) => task.projectId === project.id);
-    const goal = goalById(project.goalId);
-    return `
-      <div class="project-block">
-        ${renderProjectRow(project)}
-        <div class="tag-line">
-          ${goal ? `<span class="tag">목표: ${esc(goal.title)}</span>` : `<span class="tag">목표 없음</span>`}
-          <span class="tag">완료 ${tasks.filter((task) => task.done).length}/${tasks.length}</span>
-        </div>
-        <div class="list" style="margin-top: 12px;">
-          ${tasks.slice(0, 4).map(renderTaskRow).join("") || `<div class="empty">프로젝트 할 일이 없습니다.</div>`}
-        </div>
-        <div style="margin-top: 12px;">
-          ${renderTaskForm(project.dueDate || state.currentDate, project.id)}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderProjectRow(project) {
-    return `
-      <div class="list-row compact">
-        <div>
-          <p class="row-title">${esc(project.title)}</p>
-          <p class="row-meta">마감 ${esc(project.dueDate || "없음")}</p>
-          ${project.description ? `<p class="note-body">${esc(project.description)}</p>` : ""}
-        </div>
-        <button class="icon-btn" data-delete-project="${attr(project.id)}" title="프로젝트 삭제">×</button>
-      </div>
-    `;
-  }
-
-  function renderBinderView() {
-    return `
-      <div class="view-grid">
-        <section class="panel sheet">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">서브 바인더 노트</h2>
-              <p class="panel-subtitle">일정과 프로젝트에서 나온 기록을 지식으로 모읍니다.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="list">
-              ${state.notes.length ? state.notes.map(renderNoteRow).join("") : `<div class="empty">아직 저장된 노트가 없습니다.</div>`}
-            </div>
-          </div>
-        </section>
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">노트 추가</h2>
-              <p class="panel-subtitle">독서, 회의, 강의, 아이디어를 분류해 둡니다.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <form class="form-grid" data-form="note">
-              <div class="field">
-                <label for="note-title">제목</label>
-                <input id="note-title" name="title" required placeholder="예: 주간 리뷰에서 발견한 패턴">
-              </div>
-              <div class="form-row">
-                <div class="field">
-                  <label for="note-source">출처</label>
-                  <select id="note-source" name="source">
-                    <option value="memo">메모</option>
-                    <option value="book">독서</option>
-                    <option value="lecture">강의</option>
-                    <option value="meeting">회의</option>
-                    <option value="idea">아이디어</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="note-project">프로젝트</label>
-                  <select id="note-project" name="projectId">
-                    <option value="">연결 없음</option>
-                    ${state.projects.map((project) => `<option value="${attr(project.id)}">${esc(project.title)}</option>`).join("")}
-                  </select>
-                </div>
-              </div>
-              <div class="field">
-                <label for="note-tags">태그</label>
-                <input id="note-tags" name="tags" placeholder="쉼표로 구분">
-              </div>
-              <div class="field">
-                <label for="note-body">본문</label>
-                <textarea id="note-body" name="body" required placeholder="기록을 다음 행동으로 연결할 수 있게 적어보세요."></textarea>
-              </div>
-              <button class="text-btn primary" type="submit">노트 저장</button>
-            </form>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
-  function renderNoteRow(note) {
-    const project = projectById(note.projectId);
-    return `
-      <div class="list-row compact">
+      <div class="list-row compact inbox-row ${note.done ? "is-done" : ""}">
+        <button class="inbox-check ${note.done ? "is-checked" : ""}" data-inbox-done="${attr(note.id)}" title="${note.done ? "다시 열기" : "처리 완료"}">${note.done ? "✓" : ""}</button>
         <div>
           <p class="row-title">${esc(note.title)}</p>
-          <p class="row-meta">${esc(sourceLabel(note.source))}${project ? ` · ${esc(project.title)}` : ""}</p>
-          <div class="tag-line">
-            ${(note.tags || []).map((tag) => `<span class="tag">${esc(tag)}</span>`).join("")}
-          </div>
-          <p class="note-body">${esc(note.body)}</p>
+          ${note.body ? `<p class="note-body">${esc(note.body)}</p>` : ""}
+          <p class="row-meta">${esc(kind.label)}${note.createdAt ? ` · ${esc(String(note.createdAt).slice(0, 10))}` : ""}</p>
         </div>
-        <button class="icon-btn" data-delete-note="${attr(note.id)}" title="노트 삭제">×</button>
+        <div class="inbox-actions">
+          ${note.done ? "" : `<button class="text-btn tiny" data-inbox-promote="${attr(note.id)}" title="연구 탭 항목으로 승격">연구로</button>`}
+          <button class="icon-btn" data-delete-note="${attr(note.id)}" title="삭제">×</button>
+        </div>
       </div>
     `;
   }
 
-  function sourceLabel(source) {
-    return {
-      memo: "메모",
-      book: "독서",
-      lecture: "강의",
-      meeting: "회의",
-      idea: "아이디어"
-    }[source] || "메모";
+  // ===== 연구: 과제·실험·논문·발표를 마감과 다음 행동 중심으로 =====
+
+  function researchById(id) {
+    if (!id) return null;
+    return state.research.find((item) => item.id === id) || null;
   }
 
-  function renderReviewView() {
-    const date = state.currentDate;
-    const daily = ensureDailyLog(date);
-    const weekStart = startOfWeek(date);
-    const weekly = ensureWeeklyReview(weekStart);
+  function researchKindById(id) {
+    return researchKinds.find((kind) => kind.id === id) || researchKinds[researchKinds.length - 1];
+  }
+
+  function ddayLabel(dueDate) {
+    if (!dueDate) return "";
+    const diff = Math.round((parseISO(dueDate) - parseISO(todayISO())) / 86400000);
+    if (diff > 0) return `D-${diff}`;
+    if (diff === 0) return "D-day";
+    return `+${Math.abs(diff)}일 지남`;
+  }
+
+  function ddayClass(dueDate) {
+    if (!dueDate) return "";
+    const diff = Math.round((parseISO(dueDate) - parseISO(todayISO())) / 86400000);
+    if (diff < 0) return "is-overdue";
+    if (diff <= 7) return "is-urgent";
+    return "";
+  }
+
+  function renderResearchView() {
+    const active = state.research
+      .filter((item) => item.status !== "done")
+      .slice()
+      .sort((a, b) => (a.dueDate || "9999") < (b.dueDate || "9999") ? -1 : 1);
+    const done = state.research.filter((item) => item.status === "done");
     return `
-      <div class="two-grid">
+      <div class="view-grid">
         <section class="panel sheet">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">일간 리뷰</h2>
-              <p class="panel-subtitle">${esc(formatDate(date))}</p>
-            </div>
-          </div>
-          <div class="panel-body review-box">
-            <textarea class="daily-review" data-review-date="${attr(date)}" placeholder="오늘의 회고">${esc(daily.text || "")}</textarea>
-            <span class="save-hint">오늘 탭의 회고와 같은 데이터입니다.</span>
-          </div>
-        </section>
-        <section class="panel sheet">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">주간 리뷰</h2>
-              <p class="panel-subtitle">${esc(formatDate(weekStart))} 주</p>
+              <h2 class="panel-title">진행 중인 연구 항목</h2>
+              <p class="panel-subtitle">마감이 가까운 순서로 보입니다. 항목마다 '다음 행동' 한 줄만 살아 있으면 됩니다.</p>
             </div>
           </div>
           <div class="panel-body">
-            ${renderWeeklyReviewForm(weekStart, weekly)}
+            <div class="list">
+              ${active.length ? active.map(renderResearchBlock).join("") : `<div class="empty">아직 항목이 없습니다. 오른쪽에서 과제·실험·논문을 추가해 보세요.</div>`}
+            </div>
+            ${done.length ? `
+              <details class="done-fold">
+                <summary>완료한 항목 ${done.length}개</summary>
+                <div class="list">${done.map(renderResearchBlock).join("")}</div>
+              </details>
+            ` : ""}
           </div>
         </section>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">연구 항목 추가</h2>
+              <p class="panel-subtitle">돌아가는 일 단위로 추가합니다. 과제 보고서, 실험 세트, 논문 한 편, 학회 발표 하나.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <form class="form-grid" data-form="research">
+              <div class="field">
+                <label for="research-title">제목</label>
+                <input id="research-title" name="title" required placeholder="예: OO 과제 연차보고서 / 시료 2차 분석">
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="research-kind">종류</label>
+                  <select id="research-kind" name="kind">
+                    ${researchKinds.map((kind) => `<option value="${attr(kind.id)}">${esc(kind.label)}</option>`).join("")}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="research-due">마감</label>
+                  <input id="research-due" name="dueDate" type="date">
+                </div>
+              </div>
+              <div class="field">
+                <label for="research-next">다음 행동</label>
+                <input id="research-next" name="nextAction" placeholder="지금 당장 할 수 있는 한 걸음 (예: 서론 문헌 3편 정리)">
+              </div>
+              <div class="field">
+                <label for="research-description">메모</label>
+                <textarea id="research-description" name="description" placeholder="완료 기준, 공동 연구자, 관련 링크 등"></textarea>
+              </div>
+              <button class="text-btn primary" type="submit">항목 추가</button>
+            </form>
+            <details class="settings-help tab-help-details">
+              <summary>이 탭에 무엇을 쓰나요?</summary>
+              <ul>
+                <li><strong>과제·보고서</strong> — 연차/최종 보고서, 제안서, 과제 행정 마감</li>
+                <li><strong>실험·분석</strong> — 실험 세트, 측정, 데이터 분석 단위</li>
+                <li><strong>논문 작성</strong> — 작성 중인 원고 한 편이 한 항목</li>
+                <li><strong>학회·발표</strong> — 초록 제출, 포스터·구두 발표 준비</li>
+              </ul>
+              <p>항목 아래 체크박스는 그 일의 세부 할 일입니다. 시간이 필요한 일은 주간 탭에서 Plan 블록으로 옮겨 실제 시간을 확보하세요.</p>
+            </details>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderResearchBlock(item) {
+    const kind = researchKindById(item.kind);
+    const tasks = state.tasks.filter((task) => task.projectId === item.id || task.goalId === item.id);
+    const doneCount = tasks.filter((task) => task.done).length;
+    const dday = ddayLabel(item.dueDate);
+    const isDone = item.status === "done";
+    return `
+      <div class="project-block research-block ${isDone ? "is-done" : ""}" style="--kind-color:${attr(kind.color)}">
+        <div class="list-row compact">
+          <div>
+            <div class="research-title-line">
+              <span class="tag kind-tag">${esc(kind.label)}</span>
+              <p class="row-title">${esc(item.title)}</p>
+              ${dday && !isDone ? `<span class="dday-badge ${ddayClass(item.dueDate)}">${esc(dday)}</span>` : ""}
+            </div>
+            <p class="row-meta">${item.dueDate ? `마감 ${esc(item.dueDate)}` : "마감 없음"} · 할 일 ${doneCount}/${tasks.length}</p>
+            ${item.description ? `<p class="note-body">${esc(item.description)}</p>` : ""}
+          </div>
+          <div class="inbox-actions">
+            <button class="text-btn tiny" data-research-toggle="${attr(item.id)}">${isDone ? "다시 진행" : "완료"}</button>
+            <button class="icon-btn" data-delete-research="${attr(item.id)}" title="항목 삭제">×</button>
+          </div>
+        </div>
+        ${isDone ? "" : `
+          <label class="next-action-line">
+            <span>다음 행동</span>
+            <input class="next-action-input" data-research-next="${attr(item.id)}" value="${attr(item.nextAction || "")}" placeholder="지금 할 수 있는 한 걸음을 적어두세요">
+          </label>
+          <div class="list" style="margin-top: 10px;">
+            ${tasks.slice(0, 5).map((task) => renderTaskRow(task, { hidePeriod: true, hideMeta: true })).join("")}
+          </div>
+          <div style="margin-top: 10px;">
+            ${renderTaskForm(item.dueDate || state.currentDate, item.id)}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // ===== 루틴: 매주 반복하는 활동의 요일 체크 =====
+
+  function routineWeekDates(anchorDate) {
+    const start = startOfWeek(anchorDate);
+    return Array.from({ length: 7 }, (_, idx) => addDays(start, idx));
+  }
+
+  function isRoutineChecked(routineId, date) {
+    return Array.isArray(state.routineChecks[date]) && state.routineChecks[date].includes(routineId);
+  }
+
+  function routineWeekCount(routineId, anchorDate) {
+    return routineWeekDates(anchorDate).filter((date) => isRoutineChecked(routineId, date)).length;
+  }
+
+  function renderRoutineView() {
+    const dates = routineWeekDates(state.currentDate);
+    const today = todayISO();
+    const dayNames = ["월", "화", "수", "목", "금", "토", "일"];
+    return `
+      <div class="view-grid">
+        <section class="panel sheet">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">이번 주 루틴</h2>
+              <p class="panel-subtitle">한 일의 요일 칸을 눌러 체크합니다. 목표 횟수를 채우면 배지가 초록색이 됩니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="routine-table" role="table" aria-label="주간 루틴 체크표">
+              <div class="routine-row routine-head" role="row">
+                <span class="routine-name-cell" role="columnheader">루틴</span>
+                ${dates.map((date, idx) => `
+                  <span class="routine-day-head ${date === today ? "is-today" : ""}" role="columnheader">
+                    <em>${esc(dayNames[idx])}</em>
+                    <span>${esc(date.slice(8))}</span>
+                  </span>
+                `).join("")}
+                <span class="routine-count-head" role="columnheader">달성</span>
+              </div>
+              ${state.routines.map((routine) => renderRoutineRow(routine, dates, today)).join("")}
+            </div>
+            ${state.routines.length ? "" : `<div class="empty">루틴이 없습니다. 아래에서 추가해 보세요.</div>`}
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">루틴 추가</h2>
+              <p class="panel-subtitle">'매주 n회'로 지키고 싶은 활동을 등록합니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <form class="form-grid" data-form="routine">
+              <div class="form-row">
+                <div class="field">
+                  <label for="routine-name">이름</label>
+                  <input id="routine-name" name="name" required placeholder="예: 아이 영어 읽기">
+                </div>
+                <div class="field routine-emoji-field">
+                  <label for="routine-emoji">이모지</label>
+                  <input id="routine-emoji" name="emoji" maxlength="4" placeholder="🚴">
+                </div>
+              </div>
+              <div class="field">
+                <label for="routine-target">주간 목표 횟수</label>
+                <select id="routine-target" name="target">
+                  ${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}" ${n === 3 ? "selected" : ""}>주 ${n}회</option>`).join("")}
+                </select>
+              </div>
+              <button class="text-btn primary" type="submit">루틴 추가</button>
+            </form>
+            <details class="settings-help tab-help-details">
+              <summary>이 탭에 무엇을 쓰나요?</summary>
+              <ul>
+                <li><strong>운동</strong> — 자전거 타기, 스트레칭, 근력. 자전거는 스트라바를 연결하면 라이딩한 날 자동으로 체크됩니다.</li>
+                <li><strong>아이들과 공부</strong> — 함께 책 읽기, 수학 문제, 영어 등 '했다/안 했다'만 기록합니다.</li>
+                <li><strong>연구 습관</strong> — 논문·자료 읽기처럼 매주 꾸준히 쌓여야 하는 일.</li>
+              </ul>
+              <p>완벽보다 꾸준함이 목적입니다. 주 목표를 낮게 잡고 채우는 재미를 유지하세요.</p>
+            </details>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderRoutineRow(routine, dates, today) {
+    const count = routineWeekCount(routine.id, state.currentDate);
+    const hit = count >= routine.target;
+    return `
+      <div class="routine-row" role="row">
+        <span class="routine-name-cell" role="cell">
+          <em>${esc(routine.emoji)}</em>
+          <span class="routine-name-text">${esc(routine.name)}</span>
+          <button class="icon-btn routine-delete" data-delete-routine="${attr(routine.id)}" title="루틴 삭제">×</button>
+        </span>
+        ${dates.map((date) => `
+          <button class="routine-cell ${isRoutineChecked(routine.id, date) ? "is-checked" : ""} ${date === today ? "is-today" : ""}"
+            data-routine-toggle="${attr(routine.id)}" data-routine-date="${attr(date)}" role="cell"
+            title="${esc(routine.name)} · ${esc(date)}">${isRoutineChecked(routine.id, date) ? "✓" : ""}</button>
+        `).join("")}
+        <span class="routine-count ${hit ? "is-hit" : ""}" role="cell">${count}/${routine.target}</span>
       </div>
     `;
   }
@@ -2330,7 +2568,9 @@
     const weekBlocks = state.blocks.filter((block) => block.date >= weekStart && block.date <= weekEnd);
     const plannedWeekBlocks = weekBlocks.filter((block) => !block.actualOnly && !block.cancelled);
     const allStats = categoryStats(plannedWeekBlocks);
-    const goalStats = goalTimeStats(plannedWeekBlocks);
+    const researchStats = researchTimeStats(plannedWeekBlocks);
+    const weekDates = routineWeekDates(state.currentDate);
+    const bikeKm = weekBikeKm(weekDates);
     return `
       <div class="full-grid">
         <div class="three-grid">
@@ -2339,8 +2579,8 @@
             <div class="panel-body"><div class="mini-stat"><strong>${minutesToText(totalMinutes(plannedWeekBlocks))}</strong><span>${esc(formatDate(weekStart))}부터 ${esc(formatDate(weekEnd))}</span></div></div>
           </section>
           <section class="panel">
-            <div class="panel-header"><h2 class="panel-title">연결된 목표</h2></div>
-            <div class="panel-body"><div class="mini-stat"><strong>${new Set(plannedWeekBlocks.map((block) => block.goalId).filter(Boolean)).size}</strong><span>시간 블록과 연결됨</span></div></div>
+            <div class="panel-header"><h2 class="panel-title">이번 주 라이딩</h2></div>
+            <div class="panel-body"><div class="mini-stat"><strong>${bikeKm > 0 ? `${bikeKm.toFixed(1)}km` : "0km"}</strong><span>${stravaConnected() ? "스트라바 기록 기준" : "수동 기록 기준"}</span></div></div>
           </section>
           <section class="panel">
             <div class="panel-header"><h2 class="panel-title">완료한 할 일</h2></div>
@@ -2360,13 +2600,34 @@
           <section class="panel sheet">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">목표별 투입 시간</h2>
-                <p class="panel-subtitle">목표와 연결된 계획 시간을 확인합니다.</p>
+                <h2 class="panel-title">연구별 투입 시간</h2>
+                <p class="panel-subtitle">연구 항목과 연결된 계획 시간을 확인합니다.</p>
               </div>
             </div>
-            <div class="panel-body">${renderGoalStats(goalStats)}</div>
+            <div class="panel-body">${renderGoalStats(researchStats)}</div>
           </section>
         </div>
+        <section class="panel sheet">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">루틴 달성</h2>
+              <p class="panel-subtitle">이번 주 목표 대비 실제 체크 횟수입니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            ${state.routines.map((routine) => {
+              const count = routineWeekCount(routine.id, state.currentDate);
+              const pct = Math.min(100, Math.round((count / routine.target) * 100));
+              return `
+                <div class="stat-row">
+                  <div class="stat-label">${esc(routine.emoji)} ${esc(routine.name)}</div>
+                  <div class="stat-bar"><span style="width:${pct}%; background:${count >= routine.target ? "var(--green)" : "var(--blue)"}"></span></div>
+                  <div class="stat-value">${count}/${routine.target}회</div>
+                </div>
+              `;
+            }).join("") || `<div class="empty">등록된 루틴이 없습니다.</div>`}
+          </div>
+        </section>
       </div>
     `;
   }
@@ -2374,6 +2635,17 @@
   function renderGuideView() {
     return `
       <div class="full-grid">
+        <section class="panel sheet">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">탭별로 무엇을 쓰나요?</h2>
+              <p class="panel-subtitle">하루의 흐름: 수집함에 던져두기 → 주간에 시간 배치 → 오늘에서 실행·기록 → 통계로 돌아보기.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            ${renderTabGuideTable()}
+          </div>
+        </section>
         <section class="panel sheet">
           <div class="panel-header">
             <div>
@@ -2386,7 +2658,7 @@
               ${renderGuideCard("1", "Plan으로 계획하기", "05:00부터 24:00까지 15분 단위", "주간 탭에서 드래그로 계획 시간을 만들고, 필요한 경우 다시 끌어서 시간을 조정합니다.")}
               ${renderGuideCard("2", "Do로 실행 기록하기", "계획을 눌러 실제 실행 작성", "Do 모드에서는 계획 카드를 먼저 크게 확인하고, 클릭해 실행을 저장하면 Plan/Do가 나란히 정리됩니다.")}
               ${renderGuideCard("3", "체크리스트 분리", "주간 체크와 일일 체크를 따로 관리", "일일 체크박스는 하루마다, 주간 체크박스는 한 주 동안 확인할 항목으로 분리해 관리합니다.")}
-              ${renderGuideCard("4", "오늘 상세 기록", "필요한 일정만 메모와 첨부 추가", "오늘 탭에서 일정을 선택하면 옆 패널에서 세부 메모, 사진, 자료를 그 일정에 연결해 남길 수 있습니다.")}
+              ${renderGuideCard("4", "자전거 자동 기록", "가민 → 스트라바 → 오늘 탭", "설정에서 스트라바를 연결하면 가민으로 기록한 라이딩이 오늘 탭 자전거 카드와 루틴 체크, 주간 통계에 자동으로 나타납니다.")}
             </div>
           </div>
         </section>
@@ -2423,6 +2695,34 @@
             ${renderCategoryGuideTable()}
           </div>
         </section>
+      </div>
+    `;
+  }
+
+  function renderTabGuideTable() {
+    const rows = [
+      ["주간", "한 주의 시간 설계", "일요일 저녁이나 월요일 아침에 Plan 블록으로 연구·가족·운동 시간을 먼저 확보합니다. 하루가 끝나면 Do로 실제를 덮어써 계획과 비교합니다."],
+      ["오늘", "오늘의 실행과 기록", "지금 하는 일에 집중하는 화면입니다. 일정 선택 → 실행 기록, 체크박스, 자전거 카드, 하루 회고까지 여기서 끝냅니다."],
+      ["월간", "큰 흐름과 마감", "과제 보고서, 학회, 가족 행사 같은 굵직한 날짜를 봅니다. 세부 계획은 주간에서."],
+      ["수집함", "3초 캡처", "실험 중 떠오른 아이디어, 읽어야 할 논문, 아이 공부 소재를 판단 없이 던져둡니다. 주간 계획 때 한 번에 비웁니다."],
+      ["연구", "과제·실험·논문·발표", "돌아가는 연구 단위마다 마감(D-day)과 '다음 행동' 한 줄을 유지합니다. 시간이 필요하면 주간 탭에서 Plan 블록으로."],
+      ["루틴", "매주 반복하는 활동", "자전거, 아이들과 공부, 논문 읽기처럼 '주 n회'가 목표인 활동을 요일 표에 체크합니다. 스트라바 연결 시 자전거는 자동 체크."],
+      ["통계", "일주일 돌아보기", "시간이 계획대로 쓰였는지, 루틴을 지켰는지, 얼마나 달렸는지 확인하고 다음 주 계획에 반영합니다."]
+    ];
+    return `
+      <div class="category-guide-table tab-guide-table" role="table" aria-label="탭 안내표">
+        <div class="category-guide-row category-guide-head" role="row">
+          <strong role="columnheader">탭</strong>
+          <strong role="columnheader">한 줄 요약</strong>
+          <strong role="columnheader">이렇게 씁니다</strong>
+        </div>
+        ${rows.map(([tab, summary, description]) => `
+          <div class="category-guide-row tab-guide-row" role="row">
+            <span role="cell">${esc(tab)}</span>
+            <span role="cell" class="tab-guide-summary">${esc(summary)}</span>
+            <p role="cell">${esc(description)}</p>
+          </div>
+        `).join("")}
       </div>
     `;
   }
@@ -2507,7 +2807,7 @@
   function renderGoalStats(stats) {
     const max = Math.max(...stats.map((item) => item.minutes), 1);
     const visible = stats.filter((item) => item.minutes > 0);
-    if (!visible.length) return `<div class="empty">목표와 연결된 시간이 아직 없습니다.</div>`;
+    if (!visible.length) return `<div class="empty">연구 항목과 연결된 시간이 아직 없습니다.</div>`;
     return visible.map((item) => `
       <div class="stat-row">
         <div class="stat-label">${esc(item.name)}</div>
@@ -2526,11 +2826,20 @@
     app.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", () => {
         if (button.dataset.view !== "month") monthEditorDate = null;
+        mobileMoreOpen = false;
         setState((draft) => {
           draft.activeView = button.dataset.view;
         });
       });
     });
+
+    const mobileMoreButton = app.querySelector("[data-mobile-more]");
+    if (mobileMoreButton) {
+      mobileMoreButton.addEventListener("click", () => {
+        mobileMoreOpen = !mobileMoreOpen;
+        render();
+      });
+    }
 
     app.querySelectorAll("[data-date-shift]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -2966,41 +3275,96 @@
     [
       ["delete-task", "tasks"],
       ["delete-block", "blocks"],
-      ["delete-goal", "goals"],
-      ["delete-project", "projects"],
-      ["delete-note", "notes"]
+      ["delete-note", "notes"],
+      ["delete-research", "research"],
+      ["delete-routine", "routines"]
     ].forEach(([key, collection]) => {
       app.querySelectorAll(`[data-${key}]`).forEach((button) => {
         button.addEventListener("click", () => {
           const id = button.dataset[toCamel(key)];
           setState((draft) => {
             draft[collection] = draft[collection].filter((item) => item.id !== id);
-            if (collection === "goals") {
-              draft.projects.forEach((item) => {
-                if (item.goalId === id) item.goalId = "";
-              });
+            if (collection === "research") {
               draft.tasks.forEach((item) => {
+                if (item.projectId === id) item.projectId = "";
                 if (item.goalId === id) item.goalId = "";
               });
               draft.blocks.forEach((item) => {
+                if (item.projectId === id) item.projectId = "";
                 if (item.goalId === id) item.goalId = "";
               });
             }
-            if (collection === "projects") {
-              draft.tasks.forEach((item) => {
-                if (item.projectId === id) item.projectId = "";
-              });
-              draft.blocks.forEach((item) => {
-                if (item.projectId === id) item.projectId = "";
-              });
-              draft.notes.forEach((item) => {
-                if (item.projectId === id) item.projectId = "";
+            if (collection === "routines") {
+              Object.keys(draft.routineChecks).forEach((date) => {
+                draft.routineChecks[date] = (draft.routineChecks[date] || []).filter((rid) => rid !== id);
               });
             }
           });
         });
       });
     });
+
+    // 수집함: 처리 토글 + 연구로 승격
+    app.querySelectorAll("[data-inbox-done]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const note = draft.notes.find((item) => item.id === button.dataset.inboxDone);
+          if (note) note.done = !note.done;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-inbox-promote]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const note = draft.notes.find((item) => item.id === button.dataset.inboxPromote);
+          if (!note) return;
+          draft.research.push(normalizeResearchItem({
+            title: note.title,
+            kind: note.source === "paper" ? "paper" : "etc",
+            description: note.body || "",
+            nextAction: ""
+          }));
+          note.done = true;
+          draft.activeView = "research";
+        });
+      });
+    });
+
+    // 연구: 완료 토글 + 다음 행동 입력
+    app.querySelectorAll("[data-research-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const item = draft.research.find((entry) => entry.id === button.dataset.researchToggle);
+          if (item) item.status = item.status === "done" ? "active" : "done";
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-research-next]").forEach((input) => {
+      input.addEventListener("change", () => {
+        setState((draft) => {
+          const item = draft.research.find((entry) => entry.id === input.dataset.researchNext);
+          if (item) item.nextAction = input.value.trim();
+        });
+      });
+    });
+
+    // 루틴: 요일 칸 토글
+    app.querySelectorAll("[data-routine-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const routineId = button.dataset.routineToggle;
+        const date = button.dataset.routineDate;
+        setState((draft) => {
+          const list = Array.isArray(draft.routineChecks[date]) ? draft.routineChecks[date] : [];
+          draft.routineChecks[date] = list.includes(routineId)
+            ? list.filter((id) => id !== routineId)
+            : [...list, routineId];
+        });
+      });
+    });
+
+    bindStravaEvents();
   }
 
   function setupWeekTopScroll() {
@@ -3699,14 +4063,27 @@
       return;
     }
 
+    if (type === "bike-manual") {
+      const bikeDate = form.dataset.bikeDate || state.currentDate;
+      setState((draft) => {
+        const log = ensureDailyLogMutable(draft, bikeDate);
+        log.bike = { km: Number(data.km) || 0, min: Number(data.min) || 0 };
+        const bikeRoutine = draft.routines.find((routine) => routine.id === "routine-bike" || routine.name.includes("자전거"));
+        if (bikeRoutine) {
+          const list = Array.isArray(draft.routineChecks[bikeDate]) ? draft.routineChecks[bikeDate] : [];
+          if (!list.includes(bikeRoutine.id)) draft.routineChecks[bikeDate] = [...list, bikeRoutine.id];
+        }
+      });
+      return;
+    }
+
     if (type === "task") {
-      const project = projectById(data.projectId);
       setState((draft) => {
         draft.tasks.push({
           id: uid("task"),
           title: data.title.trim(),
           projectId: data.projectId || "",
-          goalId: project?.goalId || "",
+          goalId: "",
           dueDate: data.dueDate || draft.currentDate,
           weekStart: data.weekStart || startOfWeek(data.dueDate || draft.currentDate),
           scope: data.scope || "work",
@@ -3718,44 +4095,41 @@
       return;
     }
 
-    if (type === "goal") {
+    if (type === "research") {
       setState((draft) => {
-        draft.goals.push({
-          id: uid("goal"),
+        draft.research.push(normalizeResearchItem({
           title: data.title.trim(),
-          category: data.category.trim(),
-          description: data.description.trim(),
-          endDate: data.endDate,
-          status: "active"
-        });
+          kind: data.kind,
+          dueDate: data.dueDate || "",
+          nextAction: (data.nextAction || "").trim(),
+          description: (data.description || "").trim()
+        }));
       });
       return;
     }
 
-    if (type === "project") {
-      setState((draft) => {
-        draft.projects.push({
-          id: uid("project"),
-          title: data.title.trim(),
-          goalId: data.goalId,
-          description: data.description.trim(),
-          dueDate: data.dueDate,
-          status: "active"
-        });
-      });
-      return;
-    }
-
-    if (type === "note") {
+    if (type === "inbox") {
       setState((draft) => {
         draft.notes.unshift({
           id: uid("note"),
           title: data.title.trim(),
-          source: data.source,
-          projectId: data.projectId,
-          tags: data.tags.split(",").map((item) => item.trim()).filter(Boolean),
-          body: data.body.trim(),
+          source: data.source || "memo",
+          tags: [],
+          body: "",
+          done: false,
           createdAt: new Date().toISOString()
+        });
+      });
+      return;
+    }
+
+    if (type === "routine") {
+      setState((draft) => {
+        draft.routines.push({
+          id: uid("routine"),
+          name: data.name.trim(),
+          emoji: (data.emoji || "").trim() || "✓",
+          target: Math.min(7, Math.max(1, Number(data.target) || 3))
         });
       });
       return;
@@ -3857,20 +4231,274 @@
     });
   }
 
-  function goalTimeStats(blocks) {
-    const base = state.goals.map((goal, idx) => ({
-      id: goal.id,
-      name: goal.title,
-      color: categories[idx % categories.length].color,
-      minutes: 0
-    }));
-    const unlinked = { id: "", name: "목표 미연결", color: "#667085", minutes: 0 };
+  function researchTimeStats(blocks) {
+    const base = state.research
+      .filter((item) => item.status !== "done")
+      .map((item) => ({
+        id: item.id,
+        name: item.title,
+        color: researchKindById(item.kind).color,
+        minutes: 0
+      }));
+    const unlinked = { id: "", name: "연구 미연결", color: "#667085", minutes: 0 };
     blocks.forEach((block) => {
       const minutes = Math.max(0, minutesFromTime(block.end) - minutesFromTime(block.start));
-      const target = base.find((goal) => goal.id === block.goalId) || unlinked;
+      const target = base.find((item) => item.id === block.goalId || item.id === block.projectId) || unlinked;
       target.minutes += minutes;
     });
     return [...base, unlinked];
+  }
+
+  // ===== 스트라바 연동 (자전거) =====
+  // 흐름: 가민 기기로 라이딩 기록 → 가민 커넥트가 스트라바로 자동 업로드(가민 앱에서 1회 설정)
+  //       → 이 앱이 스트라바 API로 라이딩을 읽어 오늘 탭·통계·루틴에 반영한다.
+  // 가민 공식 API는 기업 승인제라 개인 앱에서 쓸 수 없어 스트라바를 허브로 사용한다.
+  // GCal과 동일하게 본인 소유 API 앱(Client ID/Secret)을 설정 탭에 입력하는 개인용 구조.
+
+  const STRAVA_LOCAL_KEY = "life-binder-strava-v1";
+  const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
+  const STRAVA_API = "https://www.strava.com/api/v3";
+  const STRAVA_RIDE_TYPES = ["Ride", "VirtualRide", "GravelRide", "MountainBikeRide", "EBikeRide", "EMountainBikeRide", "Velomobile", "Handcycle"];
+  const STRAVA_SYNC_DAYS = 60;
+  const STRAVA_AUTO_SYNC_MINUTES = 30;
+
+  let strava = loadStravaLocal();
+  let stravaStatusText = "";
+  let stravaSyncing = false;
+
+  function loadStravaLocal() {
+    try {
+      const raw = window.localStorage.getItem(STRAVA_LOCAL_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        clientId: parsed.clientId || "",
+        clientSecret: parsed.clientSecret || "",
+        accessToken: parsed.accessToken || "",
+        refreshToken: parsed.refreshToken || "",
+        expiresAt: Number(parsed.expiresAt) || 0,
+        athleteName: parsed.athleteName || "",
+        lastSyncAt: parsed.lastSyncAt || "",
+        activities: Array.isArray(parsed.activities) ? parsed.activities : []
+      };
+    } catch (error) {
+      return { clientId: "", clientSecret: "", accessToken: "", refreshToken: "", expiresAt: 0, athleteName: "", lastSyncAt: "", activities: [] };
+    }
+  }
+
+  function saveStravaLocal() {
+    try {
+      window.localStorage.setItem(STRAVA_LOCAL_KEY, JSON.stringify(strava));
+    } catch (error) {
+      console.warn("Strava local save failed.", error);
+    }
+  }
+
+  function stravaConnected() {
+    return Boolean(strava.refreshToken);
+  }
+
+  function stravaTimeLabel(iso) {
+    if (!iso) return "-";
+    try {
+      return new Intl.DateTimeFormat("ko", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(iso));
+    } catch (error) {
+      return iso;
+    }
+  }
+
+  function stravaRedirectUri() {
+    return `${window.location.origin}${window.location.pathname}`;
+  }
+
+  function stravaConnect() {
+    if (!strava.clientId || !strava.clientSecret) {
+      stravaStatusText = "Client ID와 Secret을 먼저 저장해 주세요.";
+      render();
+      return;
+    }
+    const params = new URLSearchParams({
+      client_id: strava.clientId,
+      redirect_uri: stravaRedirectUri(),
+      response_type: "code",
+      approval_prompt: "auto",
+      scope: "read,activity:read_all",
+      state: "sb-strava"
+    });
+    window.location.href = `https://www.strava.com/oauth/authorize?${params.toString()}`;
+  }
+
+  function stravaDisconnect() {
+    strava.accessToken = "";
+    strava.refreshToken = "";
+    strava.expiresAt = 0;
+    strava.athleteName = "";
+    stravaStatusText = "연결을 해제했습니다.";
+    saveStravaLocal();
+    render();
+  }
+
+  // 스트라바 인증 후 ?code=...&state=sb-strava 로 돌아온 경우 토큰으로 교환한다.
+  async function stravaHandleRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("state") !== "sb-strava") return;
+    const code = params.get("code");
+    const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
+    window.history.replaceState(null, "", cleanUrl);
+    if (!code) {
+      stravaStatusText = "스트라바 연결이 취소되었습니다.";
+      return;
+    }
+    try {
+      const body = new URLSearchParams({
+        client_id: strava.clientId,
+        client_secret: strava.clientSecret,
+        code,
+        grant_type: "authorization_code"
+      });
+      const response = await fetch(STRAVA_TOKEN_URL, { method: "POST", body });
+      if (!response.ok) throw new Error(`token exchange ${response.status}`);
+      const data = await response.json();
+      strava.accessToken = data.access_token || "";
+      strava.refreshToken = data.refresh_token || "";
+      strava.expiresAt = Number(data.expires_at) || 0;
+      strava.athleteName = [data.athlete?.firstname, data.athlete?.lastname].filter(Boolean).join(" ");
+      stravaStatusText = "스트라바가 연결되었습니다.";
+      saveStravaLocal();
+      await stravaSyncNow(true);
+    } catch (error) {
+      console.error("Strava token exchange failed.", error);
+      stravaStatusText = "연결 실패 — Client ID/Secret과 콜백 도메인을 확인해 주세요.";
+    }
+  }
+
+  async function stravaEnsureToken() {
+    const now = Math.floor(Date.now() / 1000);
+    if (strava.accessToken && strava.expiresAt - 120 > now) return;
+    const body = new URLSearchParams({
+      client_id: strava.clientId,
+      client_secret: strava.clientSecret,
+      refresh_token: strava.refreshToken,
+      grant_type: "refresh_token"
+    });
+    const response = await fetch(STRAVA_TOKEN_URL, { method: "POST", body });
+    if (!response.ok) throw new Error(`token refresh ${response.status}`);
+    const data = await response.json();
+    strava.accessToken = data.access_token || "";
+    strava.refreshToken = data.refresh_token || strava.refreshToken;
+    strava.expiresAt = Number(data.expires_at) || 0;
+    saveStravaLocal();
+  }
+
+  async function stravaSyncNow(rerender) {
+    if (!stravaConnected() || stravaSyncing) return;
+    stravaSyncing = true;
+    stravaStatusText = "동기화 중...";
+    try {
+      await stravaEnsureToken();
+      const after = Math.floor(Date.now() / 1000) - STRAVA_SYNC_DAYS * 86400;
+      const response = await fetch(`${STRAVA_API}/athlete/activities?after=${after}&per_page=100`, {
+        headers: { Authorization: `Bearer ${strava.accessToken}` }
+      });
+      if (!response.ok) throw new Error(`activities ${response.status}`);
+      const list = await response.json();
+      strava.activities = (Array.isArray(list) ? list : [])
+        .filter((activity) => STRAVA_RIDE_TYPES.includes(activity.sport_type || activity.type))
+        .map((activity) => ({
+          id: activity.id,
+          name: activity.name || "라이딩",
+          date: String(activity.start_date_local || "").slice(0, 10),
+          distanceKm: (Number(activity.distance) || 0) / 1000,
+          movingMin: Math.round((Number(activity.moving_time) || 0) / 60),
+          elevM: Number(activity.total_elevation_gain) || 0,
+          avgSpeedKmh: (Number(activity.average_speed) || 0) * 3.6
+        }));
+      strava.lastSyncAt = new Date().toISOString();
+      stravaStatusText = `동기화 완료 — 최근 ${STRAVA_SYNC_DAYS}일 라이딩 ${strava.activities.length}건`;
+      saveStravaLocal();
+      autoCheckBikeRoutine();
+    } catch (error) {
+      console.error("Strava sync failed.", error);
+      stravaStatusText = "동기화 실패 — 잠시 후 다시 시도해 주세요.";
+    } finally {
+      stravaSyncing = false;
+      if (rerender) render();
+    }
+  }
+
+  // 라이딩한 날은 '자전거' 루틴을 자동 체크한다 (체크 해제는 하지 않음).
+  function autoCheckBikeRoutine() {
+    const bikeRoutine = state.routines.find((routine) => routine.id === "routine-bike" || routine.name.includes("자전거"));
+    if (!bikeRoutine) return;
+    const rideDates = new Set(strava.activities.map((ride) => ride.date));
+    let changed = false;
+    rideDates.forEach((date) => {
+      const list = Array.isArray(state.routineChecks[date]) ? state.routineChecks[date] : [];
+      if (!list.includes(bikeRoutine.id)) changed = true;
+    });
+    if (!changed) return;
+    setState((draft) => {
+      rideDates.forEach((date) => {
+        const list = Array.isArray(draft.routineChecks[date]) ? draft.routineChecks[date] : [];
+        if (!list.includes(bikeRoutine.id)) draft.routineChecks[date] = [...list, bikeRoutine.id];
+      });
+    });
+  }
+
+  function bikeRidesForDate(date) {
+    return strava.activities.filter((ride) => ride.date === date);
+  }
+
+  // 주간 라이딩 거리: 스트라바 기록이 있는 날은 스트라바, 없는 날은 수동 기록을 합산한다.
+  function weekBikeKm(dates) {
+    let total = 0;
+    dates.forEach((date) => {
+      const rides = stravaConnected() ? bikeRidesForDate(date) : [];
+      if (rides.length) {
+        total += rides.reduce((sum, ride) => sum + ride.distanceKm, 0);
+        return;
+      }
+      const manual = state.reviews.daily[date]?.bike;
+      if (manual) total += Number(manual.km) || 0;
+    });
+    return total;
+  }
+
+  function stravaInit() {
+    stravaHandleRedirect().then(() => {
+      if (!stravaConnected()) return;
+      const last = strava.lastSyncAt ? Date.parse(strava.lastSyncAt) : 0;
+      if (Date.now() - last > STRAVA_AUTO_SYNC_MINUTES * 60 * 1000) {
+        stravaSyncNow(true);
+      }
+    });
+  }
+
+  function bindStravaEvents() {
+    const saveButton = app.querySelector("[data-strava-save-keys]");
+    if (saveButton) {
+      saveButton.addEventListener("click", () => {
+        strava.clientId = String(app.querySelector("[data-strava-client-id]")?.value || "").trim();
+        strava.clientSecret = String(app.querySelector("[data-strava-client-secret]")?.value || "").trim();
+        stravaStatusText = "저장했습니다. 이제 '스트라바 계정 연결'을 누르세요.";
+        saveStravaLocal();
+        render();
+      });
+    }
+    const connectButton = app.querySelector("[data-strava-connect]");
+    if (connectButton) connectButton.addEventListener("click", stravaConnect);
+    const disconnectButton = app.querySelector("[data-strava-disconnect]");
+    if (disconnectButton) disconnectButton.addEventListener("click", stravaDisconnect);
+    app.querySelectorAll("[data-strava-sync]").forEach((button) => {
+      button.addEventListener("click", () => stravaSyncNow(true));
+    });
+    app.querySelectorAll("[data-bike-manual-clear]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, button.dataset.bikeManualClear);
+          log.bike = null;
+        });
+      });
+    });
   }
 
   // ===== Google Calendar 양방향 동기화 (Plan 전용) =====
@@ -4575,6 +5203,55 @@
                 <li>생성된 Client ID를 복사해 위 입력칸에 붙여넣고 저장 → "Google 계정 연결"을 누릅니다.</li>
               </ol>
               <p>자세한 절차는 README의 "Google 캘린더 연동" 항목에도 있습니다.</p>
+            </details>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">스트라바 연동 (자전거)</h2>
+              <p class="panel-subtitle">가민 커넥트의 라이딩이 스트라바를 거쳐 오늘 탭·루틴·통계에 자동으로 나타납니다.</p>
+            </div>
+          </div>
+          <div class="panel-body settings-body">
+            <label class="settings-field">
+              <span>Client ID</span>
+              <input type="text" data-strava-client-id value="${attr(strava.clientId)}" placeholder="예: 123456" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="settings-field">
+              <span>Client Secret</span>
+              <input type="password" data-strava-client-secret value="${attr(strava.clientSecret)}" placeholder="스트라바 API 앱의 Secret" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="settings-actions">
+              <button type="button" class="text-btn" data-strava-save-keys>키 저장</button>
+              ${stravaConnected() ? `
+                <button type="button" class="text-btn primary" data-strava-sync>지금 동기화</button>
+                <button type="button" class="text-btn" data-strava-disconnect>연결 해제</button>
+              ` : `
+                <button type="button" class="text-btn primary" data-strava-connect ${strava.clientId && strava.clientSecret ? "" : "disabled"}>스트라바 계정 연결</button>
+              `}
+            </div>
+            <dl class="settings-meta">
+              <div><dt>연결 계정</dt><dd>${esc(strava.athleteName || "-")}</dd></div>
+              <div><dt>마지막 동기화</dt><dd>${esc(stravaTimeLabel(strava.lastSyncAt))}</dd></div>
+              <div><dt>상태</dt><dd>${esc(stravaStatusText || (stravaConnected() ? "정상" : "미연결"))}</dd></div>
+            </dl>
+            <details class="settings-help">
+              <summary>1단계: 가민 커넥트 → 스트라바 자동 업로드 (1회 설정)</summary>
+              <ol>
+                <li>스마트폰 <strong>가민 커넥트</strong> 앱 → 프로필 → 설정 → <strong>연결된 앱(Connected Apps)</strong>.</li>
+                <li>목록에서 <strong>Strava</strong>를 선택하고 계정을 연결합니다.</li>
+                <li>이후 자전거를 타고 기기를 동기화하면 라이딩이 스트라바에 자동으로 올라갑니다.</li>
+              </ol>
+            </details>
+            <details class="settings-help">
+              <summary>2단계: 스트라바 API 키 발급 (약 5분, 1회)</summary>
+              <ol>
+                <li><a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>에서 API 앱을 만듭니다 (이름 예: Schedule Binder).</li>
+                <li><strong>Authorization Callback Domain</strong>에 이 앱의 도메인을 입력합니다 (예: <code>xyzics82.github.io</code>, 로컬 테스트 시 <code>localhost</code>).</li>
+                <li>발급된 <strong>Client ID</strong>와 <strong>Client Secret</strong>을 위 칸에 붙여넣고 "키 저장" → "스트라바 계정 연결"을 누릅니다.</li>
+              </ol>
+              <p>키는 이 브라우저(localStorage)에만 저장되는 개인용 연동입니다. 라이딩이 있는 날은 '자전거' 루틴이 자동으로 체크됩니다.</p>
             </details>
           </div>
         </section>

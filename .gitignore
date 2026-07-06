@@ -2,3 +2,5 @@
 .edge-test-profile/
 app-screenshot.png
 *.log
+# 로컬 미리보기용 하네스 (가짜 인증/스트라바 데이터 시드 — 절대 배포 금지)
+test-preview.html
