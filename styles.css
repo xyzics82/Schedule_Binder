@@ -8286,6 +8286,72 @@ h1, h2, h3, h4,
   }
 }
 
+/* ===== 설정 탭: 연동 흐름도 + 안내 ===== */
+
+.settings-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.settings-flow span {
+  flex: 1 1 90px;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.settings-flow span em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.settings-flow i {
+  align-self: center;
+  color: var(--teal);
+  font-style: normal;
+  font-weight: 650;
+}
+
+.settings-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--teal);
+  border-radius: 6px;
+  background: rgba(42, 161, 152, 0.08);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.settings-help ul {
+  margin: 8px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .settings-flow i {
+    display: none;
+  }
+
+  .settings-flow span {
+    flex: 1 1 45%;
+  }
+}
+
 /* ===== 가이드 탭: 탭별 상세 사용 설명서 ===== */
 
 .guide-tab-details {

@@ -5357,22 +5357,68 @@
               <div><dt>마지막 동기화</dt><dd>${esc(stravaTimeLabel(strava.lastSyncAt))}</dd></div>
               <div><dt>상태</dt><dd>${esc(stravaStatusText || (stravaConnected() ? "정상" : "미연결"))}</dd></div>
             </dl>
+            <div class="settings-flow" aria-label="데이터 흐름">
+              <span>가민 기기<em>라이딩 기록</em></span>
+              <i>→</i>
+              <span>가민 커넥트<em>자동 업로드</em></span>
+              <i>→</i>
+              <span>스트라바<em>기록 보관</em></span>
+              <i>→</i>
+              <span>이 앱<em>오늘·루틴·통계</em></span>
+            </div>
+            <p class="settings-note">가민은 개인에게 데이터를 직접 열어주지 않아, 가민이 공식 지원하는 '스트라바 자동 업로드'를 다리로 사용합니다. 아래 단계를 <strong>한 번만</strong> 해두면 이후는 전부 자동입니다. 라이딩이 있는 날은 오늘 탭 카드에 기록이 뜨고 '자전거' 루틴이 자동 체크되며 통계에 주간 km가 집계됩니다.</p>
             <details class="settings-help">
-              <summary>1단계: 가민 커넥트 → 스트라바 자동 업로드 (1회 설정)</summary>
+              <summary>0단계 · 스트라바 계정이 없다면 (2분)</summary>
               <ol>
-                <li>스마트폰 <strong>가민 커넥트</strong> 앱 → 프로필 → 설정 → <strong>연결된 앱(Connected Apps)</strong>.</li>
-                <li>목록에서 <strong>Strava</strong>를 선택하고 계정을 연결합니다.</li>
-                <li>이후 자전거를 타고 기기를 동기화하면 라이딩이 스트라바에 자동으로 올라갑니다.</li>
+                <li>휴대폰에 <strong>Strava</strong> 앱을 설치하거나 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a>에 접속합니다.</li>
+                <li>구글 계정 등으로 <strong>무료 가입</strong>합니다. 유료 구독은 필요 없습니다.</li>
               </ol>
             </details>
             <details class="settings-help">
-              <summary>2단계: 스트라바 API 키 발급 (약 5분, 1회)</summary>
+              <summary>1단계 · 가민 커넥트 ↔ 스트라바 연결 (휴대폰, 3분)</summary>
               <ol>
-                <li><a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>에서 API 앱을 만듭니다 (이름 예: Schedule Binder).</li>
-                <li><strong>Authorization Callback Domain</strong>에 이 앱의 도메인을 입력합니다 (예: <code>xyzics82.github.io</code>, 로컬 테스트 시 <code>localhost</code>).</li>
-                <li>발급된 <strong>Client ID</strong>와 <strong>Client Secret</strong>을 위 칸에 붙여넣고 "키 저장" → "스트라바 계정 연결"을 누릅니다.</li>
+                <li>휴대폰에서 <strong>가민 커넥트(Garmin Connect)</strong> 앱을 엽니다.</li>
+                <li>화면 아래 <strong>더보기(≡)</strong> → <strong>설정 ⚙</strong> → <strong>연결된 앱(Connected Apps)</strong>으로 들어갑니다. (앱 버전에 따라 '타사 앱'으로 표시되기도 합니다)</li>
+                <li>목록에서 <strong>Strava</strong>를 누르고, 스트라바 계정으로 로그인한 뒤 <strong>승인(Authorize)</strong>을 누릅니다.</li>
+                <li>확인 방법: 다음 라이딩을 저장하면 몇 분 안에 스트라바 앱 피드에 자동으로 나타납니다.</li>
               </ol>
-              <p>키는 이 브라우저(localStorage)에만 저장되는 개인용 연동입니다. 라이딩이 있는 날은 '자전거' 루틴이 자동으로 체크됩니다.</p>
+              <p>이미 스트라바에 내 라이딩이 자동으로 올라오고 있다면 이 단계는 완료된 것입니다 — 건너뛰세요.</p>
+            </details>
+            <details class="settings-help">
+              <summary>2단계 · 스트라바 API 키 발급 (PC 권장, 5분, 1회)</summary>
+              <p>이 앱이 내 스트라바 기록을 읽어올 수 있도록 '개인용 열쇠'를 만드는 단계입니다. 무료입니다.</p>
+              <ol>
+                <li>PC 브라우저에서 <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>에 접속해 로그인합니다.</li>
+                <li>양식을 아래처럼 채웁니다:
+                  <ul>
+                    <li><strong>Application Name</strong>: <code>Schedule Binder</code> (아무 이름이나 되지만 'Strava' 단어는 금지)</li>
+                    <li><strong>Category</strong>: 아무거나 (예: Training)</li>
+                    <li><strong>Club</strong>: 비워둡니다</li>
+                    <li><strong>Website</strong>: <code>https://xyzics82.github.io/Schedule_Binder/</code></li>
+                    <li><strong>Authorization Callback Domain</strong>: <code>xyzics82.github.io</code> — <strong>가장 중요합니다.</strong> 이 값이 틀리면 연결이 실패합니다.</li>
+                  </ul>
+                </li>
+                <li>동의에 체크하고 <strong>Create</strong>를 누릅니다. 앱 아이콘을 올리라고 하면 아무 사진이나 올리면 됩니다.</li>
+                <li>완성 화면에서 <strong>Client ID</strong>(숫자)를 복사하고, <strong>Client Secret</strong>은 옆의 <strong>Show</strong>를 눌러 표시한 뒤 복사합니다.</li>
+              </ol>
+            </details>
+            <details class="settings-help">
+              <summary>3단계 · 이 앱과 연결 (1분)</summary>
+              <ol>
+                <li>위 입력칸에 복사한 <strong>Client ID</strong>와 <strong>Client Secret</strong>을 붙여넣고 <strong>키 저장</strong>을 누릅니다.</li>
+                <li><strong>스트라바 계정 연결</strong>을 누르면 스트라바 화면으로 이동합니다 → <strong>승인(Authorize)</strong>을 누릅니다.</li>
+                <li>자동으로 이 앱에 돌아오며 상태가 '연결됨'으로 바뀌고, 최근 60일 라이딩을 바로 가져옵니다.</li>
+              </ol>
+              <p>이후에는 라이딩 저장 → 스트라바 자동 업로드 → 이 앱이 30분마다(또는 오늘 탭 ↻를 누를 때) 자동으로 가져옵니다.</p>
+            </details>
+            <details class="settings-help">
+              <summary>문제 해결 · 자주 묻는 질문</summary>
+              <ul>
+                <li><strong>"연결 실패" 메시지가 떠요</strong> — 2단계의 Authorization Callback Domain이 정확히 <code>xyzics82.github.io</code>인지, Client ID/Secret에 공백 없이 붙여넣었는지 확인하세요.</li>
+                <li><strong>라이딩이 안 보여요</strong> — 먼저 스트라바 앱에 그 라이딩이 있는지 확인하세요. 없으면 1단계(가민↔스트라바) 연결 문제이고, 있으면 오늘 탭의 ↻를 눌러 다시 동기화하세요.</li>
+                <li><strong>폰에서도 쓰고 싶어요</strong> — 키는 기기(브라우저)마다 따로 저장됩니다. 폰 브라우저에서 이 설정 탭을 열고 같은 Client ID/Secret으로 3단계만 다시 하면 됩니다.</li>
+                <li><strong>보안이 걱정돼요</strong> — 키와 토큰은 이 기기의 브라우저에만 저장되며 외부 서버로 보내지 않습니다. 언제든 '연결 해제'로 끊을 수 있고, 스트라바 설정에서 앱 접근을 회수할 수도 있습니다.</li>
+              </ul>
             </details>
           </div>
         </section>

@@ -3,7 +3,7 @@
  * Supabase·Google 등 외부 API는 캐시하지 않고 네트워크로 통과시킨다.
  * 캐시를 새로 배포할 때는 CACHE 버전 문자열만 올리면 된다.
  */
-const CACHE = "schedule-binder-v6";
+const CACHE = "schedule-binder-v7";
 const ASSETS = [
   "./",
   "./index.html",
