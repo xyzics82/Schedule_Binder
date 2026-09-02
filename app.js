@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // build: 20260901-training-tab-2
+  // build: 20260902-sleep-edit-1
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -89,6 +89,7 @@
   let editDragState = null;
   let suppressSegmentClick = null;
   let schedulePopup = null;
+  let sleepEditDate = null; // 수면 요약을 다시 폼으로 열어 수정 중인 날짜
   let planCopyPicker = null;
   let monthEditorDate = null;
 
@@ -1462,8 +1463,14 @@
 
   function renderTodaySleepPanel(date, log) {
     const sleep = log.sleep;
+    const editing = Boolean(sleep) && sleepEditDate === date;
+    const showForm = !sleep || editing;
     const goal = state.sleepGoalBed || "23:30";
     const qualityLabels = { 1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음" };
+    const formBed = editing ? sleep.bed : goal;
+    const formWake = editing ? sleep.wake : "06:30";
+    const formQuality = editing ? sleep.quality : 3;
+    const formNote = editing ? sleep.note : "";
     return `
       <section class="panel sleep-panel">
         <div class="panel-header">
@@ -1471,10 +1478,38 @@
             <h2 class="panel-title">🌙 수면</h2>
             <p class="panel-subtitle">어젯밤 잠 — 기상일(이 날짜) 기준으로 기록합니다.</p>
           </div>
-          ${sleep ? `<button type="button" class="icon-btn" data-sleep-clear="${attr(date)}" title="기록 지우기">×</button>` : ""}
+          ${sleep && !editing ? `
+            <div class="sleep-panel-actions">
+              <button type="button" class="icon-btn" data-sleep-edit="${attr(date)}" title="기록 수정">✎</button>
+              <button type="button" class="icon-btn" data-sleep-clear="${attr(date)}" title="기록 지우기">×</button>
+            </div>
+          ` : ""}
         </div>
         <div class="panel-body sleep-body">
-          ${sleep ? `
+          ${showForm ? `
+            <form class="sleep-form" data-form="sleep-log" data-sleep-date="${attr(date)}">
+              <div class="sleep-time-row">
+                <label><span>취침</span><input name="bed" type="time" value="${attr(formBed)}" required></label>
+                <label><span>기상</span><input name="wake" type="time" value="${attr(formWake)}" required></label>
+              </div>
+              <div class="sleep-quality-row">
+                <div class="sleep-quality-picker" role="radiogroup" aria-label="수면의 질 (1 나쁨 – 5 좋음)">
+                  ${[1, 2, 3, 4, 5].map((value) => `
+                    <label title="${qualityLabels[value]}">
+                      <input type="radio" name="quality" value="${value}" ${value === formQuality ? "checked" : ""}>
+                      <span>${value}</span>
+                    </label>
+                  `).join("")}
+                </div>
+                <span class="sleep-quality-hint">질 1 나쁨 – 5 좋음</span>
+              </div>
+              <div class="sleep-note-row">
+                <input name="note" type="text" maxlength="80" value="${attr(formNote)}" placeholder="메모 (선택) — 늦게 잔 이유, 깬 횟수…">
+                <button class="text-btn" type="submit">${editing ? "저장" : "기록"}</button>
+                ${editing ? `<button type="button" class="text-btn" data-sleep-edit-cancel>취소</button>` : ""}
+              </div>
+            </form>
+          ` : `
             <div class="sleep-summary">
               <div class="sleep-summary-main">
                 <strong>${esc(minutesToText(sleepDurationMinutes(sleep.bed, sleep.wake)))}</strong>
@@ -1483,28 +1518,6 @@
               <span class="sleep-summary-sub">취침 ${esc(sleep.bed)} → 기상 ${esc(sleep.wake)} · ${sleepMetGoal(sleep.bed, goal) ? "목표 취침 지킴 ✓" : `목표(${esc(goal)})보다 늦게 잠`}</span>
               ${sleep.note ? `<p class="sleep-summary-note">${esc(sleep.note)}</p>` : ""}
             </div>
-          ` : `
-            <form class="sleep-form" data-form="sleep-log" data-sleep-date="${attr(date)}">
-              <div class="sleep-time-row">
-                <label><span>취침</span><input name="bed" type="time" value="${attr(goal)}" required></label>
-                <label><span>기상</span><input name="wake" type="time" value="06:30" required></label>
-              </div>
-              <div class="sleep-quality-row">
-                <div class="sleep-quality-picker" role="radiogroup" aria-label="수면의 질 (1 나쁨 – 5 좋음)">
-                  ${[1, 2, 3, 4, 5].map((value) => `
-                    <label title="${qualityLabels[value]}">
-                      <input type="radio" name="quality" value="${value}" ${value === 3 ? "checked" : ""}>
-                      <span>${value}</span>
-                    </label>
-                  `).join("")}
-                </div>
-                <span class="sleep-quality-hint">질 1 나쁨 – 5 좋음</span>
-              </div>
-              <div class="sleep-note-row">
-                <input name="note" type="text" maxlength="80" placeholder="메모 (선택) — 늦게 잔 이유, 깬 횟수…">
-                <button class="text-btn" type="submit">기록</button>
-              </div>
-            </form>
           `}
           <div class="sleep-goal-row">
             <span>목표 취침</span>
@@ -4592,6 +4605,7 @@
       const bed = String(data.bed || "");
       const wake = String(data.wake || "");
       if (!/^\d{1,2}:\d{2}$/.test(bed) || !/^\d{1,2}:\d{2}$/.test(wake)) return;
+      sleepEditDate = null;
       setState((draft) => {
         const log = ensureDailyLogMutable(draft, sleepDate);
         log.sleep = {
@@ -4986,10 +5000,25 @@
 
     app.querySelectorAll("[data-sleep-clear]").forEach((button) => {
       button.addEventListener("click", () => {
+        sleepEditDate = null;
         setState((draft) => {
           const log = ensureDailyLogMutable(draft, button.dataset.sleepClear);
           log.sleep = null;
         });
+      });
+    });
+
+    app.querySelectorAll("[data-sleep-edit]").forEach((button) => {
+      button.addEventListener("click", () => {
+        sleepEditDate = button.dataset.sleepEdit;
+        render();
+      });
+    });
+
+    app.querySelectorAll("[data-sleep-edit-cancel]").forEach((button) => {
+      button.addEventListener("click", () => {
+        sleepEditDate = null;
+        render();
       });
     });
 
