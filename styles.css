@@ -7932,15 +7932,25 @@ h1, h2, h3, h4,
 
 .tab-help-row {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
-  align-items: baseline;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+/* Large reading mode가 .tag를 24px로 키워 칩이 세로로 줄바꿈되던 문제 — 이 목록에서는 컴팩트 필로 고정 */
+.tab-help-row .tag {
+  justify-content: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 .tab-help-row p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -8800,7 +8810,7 @@ h1, h2, h3, h4,
   }
 
   .tab-help-row {
-    grid-template-columns: 80px minmax(0, 1fr);
+    grid-template-columns: 104px minmax(0, 1fr);
   }
 }
 
